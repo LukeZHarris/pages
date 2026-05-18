@@ -2,28 +2,26 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>PR Review — NUB-2026: ICE restart hardening</title>
+<title>NUB-2026 — How the ICE restart fix works</title>
 <style>
   :root {
-    --bg: #0d1117;
-    --panel: #161b22;
-    --panel-2: #1c232c;
-    --border: #30363d;
-    --fg: #e6edf3;
-    --muted: #8b949e;
-    --add-bg: rgba(63, 185, 80, 0.10);
-    --add-bar: #2ea043;
-    --del-bg: rgba(248, 81, 73, 0.12);
-    --del-bar: #f85149;
-    --hunk: #1f6feb;
+    --bg: #0f1419;
+    --panel: #1a212b;
+    --panel-2: #232c39;
+    --border: #2f3a4a;
+    --fg: #e8eef6;
+    --muted: #94a3b8;
 
-    --sev-info: #58a6ff;
-    --sev-good: #3fb950;
-    --sev-nit:  #d2a8ff;
-    --sev-minor:#e3b341;
-    --sev-major:#fb8500;
-    --sev-crit: #f85149;
-    --sev-q:    #79c0ff;
+    --add-bg: rgba(63, 185, 80, 0.10);
+    --del-bg: rgba(248, 81, 73, 0.10);
+    --hunk: #5b9eff;
+
+    --c-concept: #c084fc;  /* purple */
+    --c-change:  #2dd4bf;  /* teal */
+    --c-why:     #fbbf24;  /* amber */
+    --c-fix:     #4ade80;  /* green */
+    --c-gotcha:  #f97316;  /* orange */
+    --c-cleanup: #94a3b8;  /* grey */
   }
   * { box-sizing: border-box; }
   html, body {
@@ -31,102 +29,135 @@
     background: var(--bg);
     color: var(--fg);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 14.5px;
+    line-height: 1.55;
   }
   .wrap {
-    max-width: 1500px;
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 28px 24px 80px;
+    padding: 32px 28px 80px;
   }
+  /* ---------- Header ---------- */
   header.page {
     border-bottom: 1px solid var(--border);
-    padding-bottom: 18px;
-    margin-bottom: 24px;
+    padding-bottom: 22px;
+    margin-bottom: 28px;
+  }
+  header.page .kicker {
+    color: var(--c-concept);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 11.5px;
+    font-weight: 600;
+    margin-bottom: 6px;
   }
   header.page h1 {
-    margin: 0 0 6px;
-    font-size: 22px;
-    letter-spacing: -0.01em;
+    margin: 0 0 10px;
+    font-size: 30px;
+    letter-spacing: -0.015em;
   }
-  header.page .meta {
+  header.page .pitch {
     color: var(--muted);
-    font-size: 13px;
+    font-size: 17px;
+    max-width: 880px;
+    margin: 0;
   }
-  header.page .meta code {
+  header.page .pitch b { color: var(--fg); }
+
+  /* ---------- Sections ---------- */
+  section {
     background: var(--panel);
-    padding: 1px 6px;
-    border-radius: 4px;
     border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin-bottom: 22px;
+  }
+  section > h2 {
+    margin: 0 0 14px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  section > h3 {
+    margin: 18px 0 8px;
+    font-size: 15px;
+    color: var(--fg);
+  }
+  p { margin: 0 0 10px; }
+  p:last-child { margin-bottom: 0; }
+  code {
+    background: rgba(110, 118, 129, 0.18);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
   }
 
-  section.summary, section.legend {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px 18px;
-    margin-bottom: 18px;
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+
+  .tldr-card {
+    background: var(--panel-2);
+    border-left: 3px solid var(--c-fix);
+    border-radius: 6px;
+    padding: 12px 14px;
   }
-  section h2 {
-    margin: 0 0 10px;
-    font-size: 15px;
+  .tldr-card.why     { border-left-color: var(--c-why);     }
+  .tldr-card.change  { border-left-color: var(--c-change);  }
+  .tldr-card.concept { border-left-color: var(--c-concept); }
+  .tldr-card .lbl {
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
+    letter-spacing: 0.1em;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--c-fix);
+    margin-bottom: 4px;
   }
-  .grid-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-  }
-  .verdict {
-    border-left: 3px solid var(--sev-good);
-    padding: 8px 12px;
-    background: rgba(63, 185, 80, 0.06);
-    border-radius: 4px;
-  }
-  .verdict.warn { border-color: var(--sev-minor); background: rgba(227, 179, 65, 0.06); }
-  .stats {
-    display: flex;
-    gap: 18px;
-    flex-wrap: wrap;
-    font-size: 13px;
-    color: var(--muted);
-  }
-  .stats b { color: var(--fg); }
-  .legend-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px 14px;
-  }
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    padding: 4px 8px;
-    border-radius: 999px;
+  .tldr-card.why     .lbl { color: var(--c-why); }
+  .tldr-card.change  .lbl { color: var(--c-change); }
+  .tldr-card.concept .lbl { color: var(--c-concept); }
+  .tldr-card .body { font-size: 13.5px; color: var(--fg); }
+
+  /* ---------- Concept primer cards ---------- */
+  .primer {
     background: var(--panel-2);
     border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
   }
-  .dot {
-    width: 9px; height: 9px; border-radius: 50%;
-    display: inline-block;
-    flex: none;
+  .primer h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: var(--c-concept);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
   }
-  .dot.info  { background: var(--sev-info);  }
-  .dot.good  { background: var(--sev-good);  }
-  .dot.nit   { background: var(--sev-nit);   }
-  .dot.minor { background: var(--sev-minor); }
-  .dot.major { background: var(--sev-major); }
-  .dot.crit  { background: var(--sev-crit);  }
-  .dot.q     { background: var(--sev-q);     }
+  .primer p { font-size: 13px; color: var(--fg); }
+  .primer p.note { color: var(--muted); font-size: 12.5px; font-style: italic; }
 
-  /* File card */
+  /* ---------- Diagram styling ---------- */
+  .diagram {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    overflow-x: auto;
+  }
+  .diagram .caption {
+    color: var(--muted);
+    font-size: 12.5px;
+    margin-top: 10px;
+    text-align: center;
+  }
+  svg text { font-family: -apple-system, "Segoe UI", sans-serif; }
+
+  /* ---------- Diff ---------- */
   .file {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     overflow: hidden;
     margin-bottom: 22px;
   }
@@ -134,7 +165,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 14px;
+    padding: 12px 16px;
     background: var(--panel-2);
     border-bottom: 1px solid var(--border);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -142,25 +173,20 @@
   }
   .file-head .path { color: var(--fg); }
   .file-head .delta { color: var(--muted); font-size: 12px; }
-  .file-head .delta .plus { color: var(--sev-good); }
-  .file-head .delta .minus { color: var(--sev-crit); }
 
-  /* Diff layout: two columns (diff | margin annotations) */
   .diff-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 380px;
-    gap: 0;
   }
   .diff {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 12.5px;
-    line-height: 1.55;
-    padding: 0;
+    line-height: 1.6;
     overflow-x: auto;
   }
   .ln {
     display: grid;
-    grid-template-columns: 52px 52px 18px 1fr;
+    grid-template-columns: 50px 50px 18px 1fr;
     white-space: pre;
   }
   .ln .gutter {
@@ -171,53 +197,45 @@
     border-right: 1px solid var(--border);
     background: var(--panel);
   }
-  .ln .sign {
-    text-align: center;
-    color: var(--muted);
-    user-select: none;
-  }
-  .ln .code {
-    padding-left: 8px;
-    padding-right: 12px;
-  }
+  .ln .sign { text-align: center; color: var(--muted); user-select: none; }
+  .ln .code { padding-left: 8px; padding-right: 12px; }
   .ln.add { background: var(--add-bg); }
-  .ln.add .sign { color: var(--sev-good); }
+  .ln.add .sign { color: var(--c-fix); }
   .ln.del { background: var(--del-bg); }
-  .ln.del .sign { color: var(--sev-crit); }
+  .ln.del .sign { color: #f87171; }
   .ln.hunk {
-    background: rgba(31, 111, 235, 0.08);
+    background: rgba(91, 158, 255, 0.10);
     color: var(--hunk);
     font-style: italic;
   }
   .ln.hunk .code { color: var(--hunk); }
 
-  /* Annotation rail */
+  /* annotation rail (explanatory, not evaluative) */
   .rail {
     border-left: 1px solid var(--border);
     background: var(--panel);
-    padding: 10px 12px;
-    position: relative;
+    padding: 12px 14px;
   }
-  .ann {
-    border-left: 3px solid var(--sev-info);
+  .note {
+    border-left: 3px solid var(--c-concept);
     padding: 8px 10px;
     margin-bottom: 10px;
     background: var(--panel-2);
     border-radius: 4px;
-    font-size: 12.5px;
-    line-height: 1.45;
+    font-size: 13px;
+    line-height: 1.5;
   }
-  .ann .ann-head {
+  .note .note-head {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 4px;
     font-weight: 600;
-    font-size: 12px;
+    font-size: 11.5px;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
   }
-  .ann .ann-head .lines {
+  .note .note-head .lines {
     margin-left: auto;
     font-family: ui-monospace, monospace;
     color: var(--muted);
@@ -225,26 +243,51 @@
     text-transform: none;
     letter-spacing: 0;
   }
-  .ann.info  { border-left-color: var(--sev-info);  }
-  .ann.good  { border-left-color: var(--sev-good);  }
-  .ann.nit   { border-left-color: var(--sev-nit);   }
-  .ann.minor { border-left-color: var(--sev-minor); }
-  .ann.major { border-left-color: var(--sev-major); }
-  .ann.crit  { border-left-color: var(--sev-crit);  }
-  .ann.q     { border-left-color: var(--sev-q);     }
-  .ann.info  .ann-head { color: var(--sev-info);  }
-  .ann.good  .ann-head { color: var(--sev-good);  }
-  .ann.nit   .ann-head { color: var(--sev-nit);   }
-  .ann.minor .ann-head { color: var(--sev-minor); }
-  .ann.major .ann-head { color: var(--sev-major); }
-  .ann.crit  .ann-head { color: var(--sev-crit);  }
-  .ann.q     .ann-head { color: var(--sev-q);     }
-  .ann code {
-    background: rgba(110, 118, 129, 0.18);
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-size: 11.5px;
+  .note.concept { border-left-color: var(--c-concept); }
+  .note.change  { border-left-color: var(--c-change);  }
+  .note.why     { border-left-color: var(--c-why);     }
+  .note.fix     { border-left-color: var(--c-fix);     }
+  .note.gotcha  { border-left-color: var(--c-gotcha);  }
+  .note.cleanup { border-left-color: var(--c-cleanup); }
+  .note.concept .note-head { color: var(--c-concept); }
+  .note.change  .note-head { color: var(--c-change);  }
+  .note.why     .note-head { color: var(--c-why);     }
+  .note.fix     .note-head { color: var(--c-fix);     }
+  .note.gotcha  .note-head { color: var(--c-gotcha);  }
+  .note.cleanup .note-head { color: var(--c-cleanup); }
+
+  /* legend chips */
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
   }
+  .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    display: inline-block; flex: none;
+  }
+  .dot.concept { background: var(--c-concept); }
+  .dot.change  { background: var(--c-change);  }
+  .dot.why     { background: var(--c-why);     }
+  .dot.fix     { background: var(--c-fix);     }
+  .dot.gotcha  { background: var(--c-gotcha);  }
+  .dot.cleanup { background: var(--c-cleanup); }
+
+  /* token highlight */
+  .k { color: #ff7b72; }
+  .s { color: #a5d6ff; }
+  .n { color: #79c0ff; }
+  .c { color: #8b949e; font-style: italic; }
+  .p { color: #d2a8ff; }
+
+  ul { margin: 4px 0 0; padding-left: 18px; }
+  ul li { margin-bottom: 4px; }
 
   footer.page {
     color: var(--muted);
@@ -253,191 +296,406 @@
     border-top: 1px solid var(--border);
     padding-top: 14px;
   }
-  a { color: var(--sev-info); }
 
-  /* token highlight (simple) */
-  .k { color: #ff7b72; }       /* keyword */
-  .s { color: #a5d6ff; }       /* string */
-  .n { color: #79c0ff; }       /* number */
-  .c { color: #8b949e; font-style: italic; } /* comment */
-  .p { color: #d2a8ff; }       /* property */
-  .f { color: #d2a8ff; }       /* fn name */
+  /* state diagram badges */
+  .state-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--fg);
+  }
+  .state-badge.ok   { color: #6ee7b7; border-color: #064e3b; background: rgba(16,185,129,0.08); }
+  .state-badge.warn { color: #fcd34d; border-color: #78350f; background: rgba(245,158,11,0.08); }
+  .state-badge.bad  { color: #fca5a5; border-color: #7f1d1d; background: rgba(239,68,68,0.08); }
 </style>
 </head>
 <body>
 <div class="wrap">
 
+<!-- ========================================== -->
+<!-- Hero                                       -->
+<!-- ========================================== -->
 <header class="page">
-  <h1>PR Review — <span style="color:var(--sev-info)">NUB-2026</span>: ICE restart hardening</h1>
-  <div class="meta">
-    Branch <code>NUB-2026</code> → <code>main</code> &nbsp;·&nbsp; 4 commits &nbsp;·&nbsp;
-    <code>public/_appsettings.json</code>, <code>public/appsettings.json</code>,
-    <code>src/components/Phone.vue</code>
-  </div>
+  <div class="kicker">NUB-2026 · src/components/Phone.vue</div>
+  <h1>Stop tearing our own ICE restart in half</h1>
+  <p class="pitch">
+    When a call's media path dropped, our WebRTC peer was doing an ICE restart and our SIP stack
+    was <em>also</em> doing one — at the same time, against the same peer connection.
+    The next call was silent. This PR hands the whole offer/answer back to SIP.js, debounces
+    transient blips, and cleans up after itself.
+  </p>
 </header>
 
-<section class="summary">
-  <h2>Summary</h2>
-  <p style="margin:0 0 10px">
-    Replaces an eager-and-manual ICE restart with a SIP.js-driven re-INVITE, debounced on the transient
-    <code>disconnected</code> state. Adds lifecycle cleanup and tightens success/failure reporting.
-    Also raises <code>iceGatheringTimeout</code> from 500&nbsp;ms to 3000&nbsp;ms.
-  </p>
+<!-- ========================================== -->
+<!-- TL;DR                                      -->
+<!-- ========================================== -->
+<section>
+  <h2>TL;DR</h2>
   <div class="grid-2">
-    <div class="verdict">
-      <b>Verdict:</b> Approve with nits. The core fix (let SIP.js own the offer/answer for ICE restart)
-      is the right call — it removes a documented race that caused silent first call after restart.
-      Lifecycle handling is solid. A few small UX/robustness items below.
+    <div class="tldr-card">
+      <div class="lbl">What the bug was</div>
+      <div class="body">
+        Old <code>iceRestart()</code> manually called <code>restartIce()</code>,
+        <code>createOffer()</code>, and <code>setLocalDescription()</code> on the raw
+        <code>RTCPeerConnection</code>, then asked SIP.js to send a re-INVITE.
+        SIP.js builds its own offer when you call <code>invite()</code>, so the peer
+        connection got mutated twice and ended up half-renegotiated.
+      </div>
     </div>
-    <div class="stats">
-      <div><b>Files</b> 3</div>
-      <div><b>+</b><span style="color:var(--sev-good)">82</span></div>
-      <div><b>−</b><span style="color:var(--sev-crit)">23</span></div>
-      <div><b>Risk</b> Medium — runtime media path</div>
-      <div><b>Test surface</b> Manual: Wi-Fi handoff, network drop, call teardown during restart</div>
+    <div class="tldr-card change">
+      <div class="lbl">What the fix is</div>
+      <div class="body">
+        Pass <code>iceRestart: true</code> through <code>sessionDescriptionHandlerOptions.offerOptions</code>
+        and let SIP.js run the entire offer/answer. We just listen for the final 2xx/4xx via
+        <code>requestDelegate</code>.
+      </div>
+    </div>
+    <div class="tldr-card concept">
+      <div class="lbl">Why debounce</div>
+      <div class="body">
+        Per spec, <code>iceConnectionState === 'disconnected'</code> is <b>transient</b> — ICE often
+        recovers on its own within a couple of seconds (Wi-Fi handoffs, brief packet loss).
+        We now wait 3 s before issuing a re-INVITE; <code>'failed'</code> still restarts immediately.
+      </div>
+    </div>
+    <div class="tldr-card why">
+      <div class="lbl">Why the timeout bump</div>
+      <div class="body">
+        <code>iceGatheringTimeout</code> went from 500 ms → 3000 ms so the restart offer actually
+        has time to gather TURN/relay candidates before SIP.js sends it. 500 ms was reliably
+        producing offers with only host candidates.
+      </div>
     </div>
   </div>
 </section>
 
-<section class="legend">
-  <h2>Severity legend</h2>
-  <div class="legend-grid">
-    <span class="chip"><span class="dot good"></span>Positive — keep doing this</span>
-    <span class="chip"><span class="dot info"></span>Info / context</span>
-    <span class="chip"><span class="dot q"></span>Question</span>
-    <span class="chip"><span class="dot nit"></span>Nit — style/readability</span>
-    <span class="chip"><span class="dot minor"></span>Minor — small bug or UX</span>
-    <span class="chip"><span class="dot major"></span>Major — likely breaks something</span>
-    <span class="chip"><span class="dot crit"></span>Critical — must fix</span>
+<!-- ========================================== -->
+<!-- Background primer                          -->
+<!-- ========================================== -->
+<section>
+  <h2>30-second primer (if you don't live in WebRTC)</h2>
+  <div class="grid-3">
+    <div class="primer">
+      <h4>ICE connection states</h4>
+      <p>
+        The browser publishes the health of the media path as a state machine on
+        <code>RTCPeerConnection</code>. The states we care about:
+      </p>
+      <p>
+        <span class="state-badge ok">connected</span> /
+        <span class="state-badge ok">completed</span> media is flowing<br/>
+        <span class="state-badge warn">disconnected</span> packets missed; <b>may recover</b><br/>
+        <span class="state-badge bad">failed</span> can't proceed without restart<br/>
+        <span class="state-badge">closed</span> session over
+      </p>
+    </div>
+    <div class="primer">
+      <h4>What an "ICE restart" is</h4>
+      <p>
+        A fresh round of candidate gathering using new credentials, signalled to the far end
+        via a SIP <b>re-INVITE</b> that carries a new SDP offer. The re-INVITE rides the
+        existing dialog — the call doesn't drop.
+      </p>
+      <p class="note">
+        In SIP.js: call <code>session.invite()</code> on an established session and pass
+        <code>offerOptions: { iceRestart: true }</code>.
+      </p>
+    </div>
+    <div class="primer">
+      <h4>Why SIP.js has to own the offer</h4>
+      <p>
+        SIP.js's <code>SessionDescriptionHandler</code> tracks rollback state and pending
+        transactions. If you mutate the underlying <code>RTCPeerConnection</code> directly
+        and <em>then</em> let SIP.js build an offer, SIP.js's view of "what we last offered"
+        diverges from reality — symptom: silent audio on the next call.
+      </p>
+    </div>
   </div>
 </section>
 
-<!-- ============================================================= -->
-<!-- File 1: appsettings.json (both files identical change)         -->
-<!-- ============================================================= -->
+<!-- ========================================== -->
+<!-- Before / After flow                        -->
+<!-- ========================================== -->
+<section>
+  <h2>Before vs After: the iceRestart() flow</h2>
+
+  <div class="grid-2">
+    <!-- BEFORE -->
+    <div class="diagram">
+      <svg viewBox="0 0 520 320" width="100%" height="320" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+          </marker>
+          <marker id="arrRBad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#f87171"/>
+          </marker>
+        </defs>
+        <!-- lifelines -->
+        <text x="80"  y="22" fill="#e8eef6" font-size="12" text-anchor="middle">Phone.vue</text>
+        <text x="260" y="22" fill="#e8eef6" font-size="12" text-anchor="middle">RTCPeerConnection</text>
+        <text x="440" y="22" fill="#e8eef6" font-size="12" text-anchor="middle">SIP.js / peer</text>
+        <line x1="80"  y1="30" x2="80"  y2="300" stroke="#2f3a4a" stroke-dasharray="3 3"/>
+        <line x1="260" y1="30" x2="260" y2="300" stroke="#2f3a4a" stroke-dasharray="3 3"/>
+        <line x1="440" y1="30" x2="440" y2="300" stroke="#2f3a4a" stroke-dasharray="3 3"/>
+
+        <!-- arrows -->
+        <line x1="80"  y1="60"  x2="255" y2="60"  stroke="#94a3b8" marker-end="url(#arrR)"/>
+        <text x="167" y="55" fill="#94a3b8" font-size="11" text-anchor="middle">restartIce()</text>
+
+        <line x1="80"  y1="92"  x2="255" y2="92"  stroke="#94a3b8" marker-end="url(#arrR)"/>
+        <text x="167" y="87" fill="#94a3b8" font-size="11" text-anchor="middle">createOffer({iceRestart:true})</text>
+
+        <line x1="80"  y1="124" x2="255" y2="124" stroke="#94a3b8" marker-end="url(#arrR)"/>
+        <text x="167" y="119" fill="#94a3b8" font-size="11" text-anchor="middle">setLocalDescription(offer)</text>
+
+        <line x1="80"  y1="170" x2="435" y2="170" stroke="#94a3b8" marker-end="url(#arrR)"/>
+        <text x="260" y="165" fill="#94a3b8" font-size="11" text-anchor="middle">session.invite()  (no options!)</text>
+
+        <!-- SIP.js does its OWN createOffer behind the scenes -->
+        <rect x="260" y="190" width="180" height="50" rx="4" fill="rgba(239,68,68,0.12)" stroke="#7f1d1d"/>
+        <text x="350" y="208" fill="#fca5a5" font-size="11" text-anchor="middle">SIP.js calls createOffer()</text>
+        <text x="350" y="222" fill="#fca5a5" font-size="11" text-anchor="middle">+ setLocalDescription() AGAIN</text>
+        <text x="350" y="236" fill="#fca5a5" font-size="11" text-anchor="middle" font-style="italic">…on a PC we already mutated</text>
+
+        <line x1="80"  y1="278" x2="435" y2="278" stroke="#f87171" marker-end="url(#arrRBad)"/>
+        <text x="260" y="273" fill="#fca5a5" font-size="11" text-anchor="middle">result: half-renegotiated PC → silent first call</text>
+      </svg>
+      <div class="caption">Old flow — two actors writing to the same peer connection</div>
+    </div>
+
+    <!-- AFTER -->
+    <div class="diagram">
+      <svg viewBox="0 0 520 320" width="100%" height="320" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrR2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+          </marker>
+          <marker id="arrR2Good" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="#4ade80"/>
+          </marker>
+        </defs>
+        <text x="80"  y="22" fill="#e8eef6" font-size="12" text-anchor="middle">Phone.vue</text>
+        <text x="260" y="22" fill="#e8eef6" font-size="12" text-anchor="middle">SIP.js Session</text>
+        <text x="440" y="22" fill="#e8eef6" font-size="12" text-anchor="middle">Peer</text>
+        <line x1="80"  y1="30" x2="80"  y2="300" stroke="#2f3a4a" stroke-dasharray="3 3"/>
+        <line x1="260" y1="30" x2="260" y2="300" stroke="#2f3a4a" stroke-dasharray="3 3"/>
+        <line x1="440" y1="30" x2="440" y2="300" stroke="#2f3a4a" stroke-dasharray="3 3"/>
+
+        <!-- single call -->
+        <line x1="80" y1="70" x2="255" y2="70" stroke="#94a3b8" marker-end="url(#arrR2)"/>
+        <text x="167" y="58" fill="#94a3b8" font-size="11" text-anchor="middle">session.invite({</text>
+        <text x="167" y="84" fill="#a5d6ff" font-size="11" text-anchor="middle">offerOptions: {iceRestart: true},</text>
+        <text x="167" y="98" fill="#a5d6ff" font-size="11" text-anchor="middle">requestDelegate: {...}</text>
+        <text x="167" y="112" fill="#94a3b8" font-size="11" text-anchor="middle">})</text>
+
+        <rect x="200" y="130" width="120" height="46" rx="4" fill="rgba(74,222,128,0.10)" stroke="#064e3b"/>
+        <text x="260" y="148" fill="#6ee7b7" font-size="11" text-anchor="middle">SIP.js owns:</text>
+        <text x="260" y="164" fill="#6ee7b7" font-size="11" text-anchor="middle">offer + setLocalDesc</text>
+
+        <line x1="260" y1="200" x2="435" y2="200" stroke="#94a3b8" marker-end="url(#arrR2)"/>
+        <text x="347" y="195" fill="#94a3b8" font-size="11" text-anchor="middle">re-INVITE (SDP w/ ICE restart)</text>
+
+        <line x1="435" y1="232" x2="265" y2="232" stroke="#94a3b8" marker-end="url(#arrR2)"/>
+        <text x="350" y="226" fill="#94a3b8" font-size="11" text-anchor="middle">200 OK + answer</text>
+
+        <line x1="255" y1="270" x2="80" y2="270" stroke="#4ade80" marker-end="url(#arrR2Good)"/>
+        <text x="167" y="264" fill="#86efac" font-size="11" text-anchor="middle">requestDelegate.onAccept()</text>
+        <text x="167" y="290" fill="#86efac" font-size="11" text-anchor="middle" font-style="italic">→ statusMessage = "ICE Restart: Success"</text>
+      </svg>
+      <div class="caption">New flow — one actor, one offer/answer round-trip</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================== -->
+<!-- State machine                              -->
+<!-- ========================================== -->
+<section>
+  <h2>How <code>processIceStateChange</code> now reacts</h2>
+
+  <div class="diagram">
+    <svg viewBox="0 0 980 280" width="100%" height="280" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="aL" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- States row -->
+      <g font-family="ui-monospace" font-size="13">
+        <!-- connected/completed -->
+        <rect x="40"  y="40"  width="160" height="56" rx="8" fill="rgba(16,185,129,0.10)" stroke="#064e3b" stroke-width="1.5"/>
+        <text x="120" y="65" fill="#6ee7b7" text-anchor="middle">connected /</text>
+        <text x="120" y="82" fill="#6ee7b7" text-anchor="middle">completed</text>
+
+        <!-- disconnected -->
+        <rect x="260" y="40" width="160" height="56" rx="8" fill="rgba(245,158,11,0.10)" stroke="#78350f" stroke-width="1.5"/>
+        <text x="340" y="73" fill="#fcd34d" text-anchor="middle">disconnected</text>
+
+        <!-- failed -->
+        <rect x="480" y="40" width="160" height="56" rx="8" fill="rgba(239,68,68,0.10)" stroke="#7f1d1d" stroke-width="1.5"/>
+        <text x="560" y="73" fill="#fca5a5" text-anchor="middle">failed</text>
+
+        <!-- closed -->
+        <rect x="700" y="40" width="160" height="56" rx="8" fill="rgba(148,163,184,0.10)" stroke="#475569" stroke-width="1.5"/>
+        <text x="780" y="73" fill="#cbd5e1" text-anchor="middle">closed</text>
+      </g>
+
+      <!-- Actions row -->
+      <g font-family="-apple-system" font-size="12">
+        <!-- connected -->
+        <line x1="120" y1="100" x2="120" y2="140" stroke="#94a3b8" marker-end="url(#aL)"/>
+        <rect x="20" y="146" width="200" height="106" rx="6" fill="#1a212b" stroke="#2f3a4a"/>
+        <text x="120" y="166" fill="#4ade80" text-anchor="middle" font-weight="600">happy path</text>
+        <text x="120" y="186" fill="#e8eef6" text-anchor="middle">cancel any pending timer</text>
+        <text x="120" y="204" fill="#e8eef6" text-anchor="middle">clear "ICE Disconnected"</text>
+        <text x="120" y="222" fill="#94a3b8" text-anchor="middle" font-style="italic">media is flowing again</text>
+
+        <!-- disconnected -->
+        <line x1="340" y1="100" x2="340" y2="140" stroke="#94a3b8" marker-end="url(#aL)"/>
+        <rect x="240" y="146" width="200" height="106" rx="6" fill="#1a212b" stroke="#2f3a4a"/>
+        <text x="340" y="166" fill="#fbbf24" text-anchor="middle" font-weight="600">debounce 3 s</text>
+        <text x="340" y="186" fill="#e8eef6" text-anchor="middle">if no timer running:</text>
+        <text x="340" y="204" fill="#e8eef6" text-anchor="middle">set status "waiting…"</text>
+        <text x="340" y="222" fill="#e8eef6" text-anchor="middle">schedule restart in 3 s</text>
+        <text x="340" y="240" fill="#94a3b8" text-anchor="middle" font-style="italic">cancelled by connected/closed</text>
+
+        <!-- failed -->
+        <line x1="560" y1="100" x2="560" y2="140" stroke="#94a3b8" marker-end="url(#aL)"/>
+        <rect x="460" y="146" width="200" height="106" rx="6" fill="#1a212b" stroke="#2f3a4a"/>
+        <text x="560" y="166" fill="#f87171" text-anchor="middle" font-weight="600">restart now</text>
+        <text x="560" y="186" fill="#e8eef6" text-anchor="middle">cancel any debounce</text>
+        <text x="560" y="204" fill="#e8eef6" text-anchor="middle">iceRestart() immediately</text>
+        <text x="560" y="222" fill="#94a3b8" text-anchor="middle" font-style="italic">no recovery without action</text>
+
+        <!-- closed -->
+        <line x1="780" y1="100" x2="780" y2="140" stroke="#94a3b8" marker-end="url(#aL)"/>
+        <rect x="680" y="146" width="200" height="106" rx="6" fill="#1a212b" stroke="#2f3a4a"/>
+        <text x="780" y="166" fill="#cbd5e1" text-anchor="middle" font-weight="600">teardown</text>
+        <text x="780" y="186" fill="#e8eef6" text-anchor="middle">cancel any debounce</text>
+        <text x="780" y="204" fill="#94a3b8" text-anchor="middle" font-style="italic">avoids firing after call ends</text>
+      </g>
+    </svg>
+    <div class="caption">
+      <code>new</code> and <code>checking</code> fall through with no action — they're informational only.
+    </div>
+  </div>
+</section>
+
+<!-- ========================================== -->
+<!-- Annotation legend                          -->
+<!-- ========================================== -->
+<section>
+  <h2>Annotation legend</h2>
+  <div class="chips">
+    <span class="chip"><span class="dot concept"></span>Concept — background you need to read this</span>
+    <span class="chip"><span class="dot change"></span>Change — what's different now</span>
+    <span class="chip"><span class="dot why"></span>Why — the reasoning</span>
+    <span class="chip"><span class="dot fix"></span>Bug fix — addresses a known failure</span>
+    <span class="chip"><span class="dot gotcha"></span>Gotcha — non-obvious behaviour</span>
+    <span class="chip"><span class="dot cleanup"></span>Cleanup — supporting tidy-up</span>
+  </div>
+</section>
+
+<!-- ========================================== -->
+<!-- The diff                                   -->
+<!-- ========================================== -->
+
 <div class="file">
   <div class="file-head">
-    <span class="path">public/{_,}appsettings.json &nbsp;<span style="color:var(--muted)">(identical change in both)</span></span>
-    <span class="delta"><span class="plus">+1</span> / <span class="minus">−1</span></span>
+    <span class="path">public/{_,}appsettings.json</span>
+    <span class="delta">+1 / −1 (identical change in both files)</span>
   </div>
   <div class="diff-row">
     <div class="diff">
-<div class="ln hunk"><span class="gutter">@@</span><span class="gutter">@@</span><span class="sign"></span><span class="code">@@ -21,7 +21,7 @@ "constraints"</span></div>
-<div class="ln"><span class="gutter">21</span><span class="gutter">21</span><span class="sign"> </span><span class="code">    <span class="s">"constraints"</span>: { <span class="s">"audio"</span>: <span class="k">true</span>, <span class="s">"video"</span>: <span class="k">false</span> },</div>
-<div class="ln del"><span class="gutter">22</span><span class="gutter"></span><span class="sign">-</span><span class="code">    <span class="s">"iceGatheringTimeout"</span>: <span class="n">500</span>,</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">22</span><span class="sign">+</span><span class="code">    <span class="s">"iceGatheringTimeout"</span>: <span class="n">3000</span>,</div>
-<div class="ln"><span class="gutter">23</span><span class="gutter">23</span><span class="sign"> </span><span class="code">    <span class="s">"peerConnectionConfiguration"</span>: { ... }</div>
+<div class="ln hunk"><span class="gutter">@@</span><span class="gutter">@@</span><span class="sign"></span><span class="code">@@ ICE configuration @@</span></div>
+<div class="ln"><span class="gutter">21</span><span class="gutter">21</span><span class="sign"> </span><span class="code">  <span class="s">"constraints"</span>: { <span class="s">"audio"</span>: <span class="k">true</span>, <span class="s">"video"</span>: <span class="k">false</span> },</div>
+<div class="ln del"><span class="gutter">22</span><span class="gutter"></span><span class="sign">−</span><span class="code">  <span class="s">"iceGatheringTimeout"</span>: <span class="n">500</span>,</div>
+<div class="ln add"><span class="gutter"></span><span class="gutter">22</span><span class="sign">+</span><span class="code">  <span class="s">"iceGatheringTimeout"</span>: <span class="n">3000</span>,</div>
     </div>
     <div class="rail">
-      <div class="ann minor">
-        <div class="ann-head"><span class="dot minor"></span>Initial-call latency<span class="lines">L22</span></div>
-        500&nbsp;ms → 3000&nbsp;ms is a 6× bump and applies to the <em>initial</em> offer too, not only restarts.
-        Worst-case dial latency goes up by ~2.5&nbsp;s when relay candidates are slow to gather.
-        Is the trade explicitly accepted? Worth confirming against the "time to first ring"
-        metric before shipping.
+      <div class="note concept">
+        <div class="note-head"><span class="dot concept"></span>What this controls<span class="lines">L22</span></div>
+        How long SIP.js waits for the peer connection to finish gathering ICE candidates
+        before it stops waiting and sends the SDP offer it has so far.
       </div>
-      <div class="ann q">
-        <div class="ann-head"><span class="dot q"></span>Why 3000?<span class="lines">L22</span></div>
-        It happens to match the debounce window in <code>Phone.vue</code>. Coincidence, or
-        intentional? If intentional, a comment in the JSON (or named constant on the JS side)
-        would make the relationship discoverable.
+      <div class="note why">
+        <div class="note-head"><span class="dot why"></span>Why the bump<span class="lines">500 → 3000</span></div>
+        500 ms isn't enough to gather <em>relay</em> (TURN) candidates — only host candidates,
+        which fail behind most corporate NAT. Restart offers were being sent with effectively
+        useless candidate lists.
       </div>
-      <div class="ann good">
-        <div class="ann-head"><span class="dot good"></span>Both files in sync<span class="lines">_appsettings + appsettings</span></div>
-        Template (<code>_appsettings.json</code>) and active (<code>appsettings.json</code>) are kept
-        in lockstep — good, that's a frequent footgun in this repo.
+      <div class="note gotcha">
+        <div class="note-head"><span class="dot gotcha"></span>Trade-off<span class="lines">first call</span></div>
+        This same timeout applies to the <b>initial</b> offer too, so the very first dial can
+        now take up to ~2.5 s longer in worst-case networks. Acceptable because relay candidates
+        are what make calls work at all from restricted networks.
       </div>
     </div>
   </div>
 </div>
 
-<!-- ============================================================= -->
-<!-- File 2: Phone.vue                                              -->
-<!-- ============================================================= -->
 <div class="file">
   <div class="file-head">
     <span class="path">src/components/Phone.vue</span>
-    <span class="delta"><span class="plus">+80</span> / <span class="minus">−21</span></span>
+    <span class="delta">+80 / −21</span>
   </div>
 
-  <!-- hunk: data() addition -->
+  <!-- data() -->
   <div class="diff-row">
     <div class="diff">
-<div class="ln hunk"><span class="gutter">@@</span><span class="gutter">@@</span><span class="sign"></span><span class="code">@@ -67,6 +67,7 @@ data()</span></div>
-<div class="ln"><span class="gutter">67</span><span class="gutter">67</span><span class="sign"> </span><span class="code">      <span class="p">input</span>: <span class="s">""</span>,</div>
-<div class="ln"><span class="gutter">68</span><span class="gutter">68</span><span class="sign"> </span><span class="code">      <span class="p">dtmf_options</span>: { <span class="s">'duration'</span>: <span class="n">100</span>, <span class="s">'interToneGap'</span>: <span class="n">100</span> },</div>
+<div class="ln hunk"><span class="gutter">@@</span><span class="gutter">@@</span><span class="sign"></span><span class="code">@@ data() — new instance field @@</span></div>
 <div class="ln"><span class="gutter">69</span><span class="gutter">69</span><span class="sign"> </span><span class="code">      <span class="p">volume</span>: <span class="n">0.03</span>,</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">70</span><span class="sign">+</span><span class="code">      <span class="p">iceRestartTimer</span>: <span class="k">null</span>,</div>
     </div>
     <div class="rail">
-      <div class="ann good">
-        <div class="ann-head"><span class="dot good"></span>Sentinel is null, not 0<span class="lines">L70</span></div>
-        Using <code>null</code> (not <code>0</code>) as the "no timer" sentinel — matches the
-        <code>=== null</code> guard below. Consistent.
-      </div>
-      <div class="ann nit">
-        <div class="ann-head"><span class="dot nit"></span>Reactivity not needed<span class="lines">L70</span></div>
-        Timer handles don't need Vue reactivity; this just costs a getter/setter pair on every
-        component. Not worth a rewrite, but if you ever touch this again, <code>this.$_iceRestartTimer</code>
-        on the instance avoids the cost. Strictly nit.
+      <div class="note change">
+        <div class="note-head"><span class="dot change"></span>The debounce handle<span class="lines">L70</span></div>
+        Stores the <code>setTimeout</code> id for the pending "wait and see" restart so we can
+        cancel it from anywhere — state change, hangup, component teardown.
       </div>
     </div>
   </div>
 
-  <!-- hunk: beforeDestroy -->
+  <!-- beforeDestroy + sessionTerminated -->
   <div class="diff-row">
     <div class="diff">
-<div class="ln hunk"><span class="gutter">@@</span><span class="gutter">@@</span><span class="sign"></span><span class="code">@@ -82,6 +83,7 @@ beforeDestroy()</span></div>
-<div class="ln"><span class="gutter">84</span><span class="gutter">85</span><span class="sign"> </span><span class="code">    window.removeEventListener(<span class="s">'beforeunload'</span>, <span class="k">this</span>.beforeWindowUnload);</div>
+<div class="ln hunk"><span class="gutter">@@</span><span class="gutter">@@</span><span class="sign"></span><span class="code">@@ beforeDestroy + sessionTerminated — lifecycle @@</span></div>
+<div class="ln"><span class="gutter">85</span><span class="gutter">86</span><span class="sign"> </span><span class="code">    window.removeEventListener(<span class="s">'beforeunload'</span>, <span class="k">this</span>.beforeWindowUnload);</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">86</span><span class="sign">+</span><span class="code">    <span class="k">this</span>.cancelIceRestartTimer();</div>
-<div class="ln"><span class="gutter">85</span><span class="gutter">87</span><span class="sign"> </span><span class="code">  },</div>
-    </div>
-    <div class="rail">
-      <div class="ann good">
-        <div class="ann-head"><span class="dot good"></span>Lifecycle cleanup<span class="lines">L86</span></div>
-        Cancels on teardown so the debounced restart can't fire against a half-destroyed
-        component. Exactly right.
-      </div>
-    </div>
-  </div>
-
-  <!-- hunk: sessionTerminated -->
-  <div class="diff-row">
-    <div class="diff">
-<div class="ln hunk"><span class="gutter">@@</span><span class="gutter">@@</span><span class="sign"></span><span class="code">@@ -423,9 +425,11 @@ sessionTerminated()</span></div>
-<div class="ln"><span class="gutter">425</span><span class="gutter">427</span><span class="sign"> </span><span class="code">      <span class="k">this</span>.stopRingTone();</div>
-<div class="ln"><span class="gutter">426</span><span class="gutter">428</span><span class="sign"> </span><span class="code">      <span class="k">this</span>.stopRingbackTone();</div>
+<div class="ln"><span class="gutter">…</span><span class="gutter">…</span><span class="sign"> </span><span class="code">    sessionTerminated() {</div>
+<div class="ln"><span class="gutter">…</span><span class="gutter">…</span><span class="sign"> </span><span class="code">      <span class="k">this</span>.stopRingbackTone();</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">429</span><span class="sign">+</span><span class="code">      <span class="k">this</span>.cancelIceRestartTimer();</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">430</span><span class="sign">+</span><span class="code">      <span class="k">this</span>.statusMessage = <span class="s">''</span>;</div>
-<div class="ln"><span class="gutter">427</span><span class="gutter">431</span><span class="sign"> </span><span class="code">      <span class="k">this</span>.setStatus(<span class="s">'Disconnected'</span>);</div>
     </div>
     <div class="rail">
-      <div class="ann good">
-        <div class="ann-head"><span class="dot good"></span>Status reset on hangup<span class="lines">L429–430</span></div>
-        Clears the lingering "ICE Restart: …" / "ICE Disconnected" text on call end — matches
-        the commit message intent. UX clearly better.
+      <div class="note cleanup">
+        <div class="note-head"><span class="dot cleanup"></span>Don't fire after destroy<span class="lines">L86</span></div>
+        Component going away while a debounce is pending would call <code>iceRestart()</code> on
+        a dead Vue instance — cleanup avoids that.
       </div>
-      <div class="ann minor">
-        <div class="ann-head"><span class="dot minor"></span>Late <code>iceRestartAccepted</code> can repaint<span class="lines">L429</span></div>
-        If a re-INVITE is in flight when the call terminates, <code>iceRestartAccepted()</code> can
-        still resolve afterwards and overwrite <code>statusMessage</code> with
-        <code>"ICE Restart: Success"</code>. Same risk for <code>iceRestartRejected</code>.
-        Consider gating those handlers on <code>session.state === Established</code> too.
+      <div class="note change">
+        <div class="note-head"><span class="dot change"></span>Clean slate on hangup<span class="lines">L429–430</span></div>
+        Cancels any pending restart and wipes the "ICE Disconnected — Restarting" text that
+        would otherwise linger after the call ends.
       </div>
     </div>
   </div>
 
-  <!-- hunk: processIceStateChange refactor -->
+  <!-- processIceStateChange refactor -->
   <div class="diff-row">
     <div class="diff">
-<div class="ln hunk"><span class="gutter">@@</span><span class="gutter">@@</span><span class="sign"></span><span class="code">@@ -451,45 +455,100 @@ processIceStateChange(newState)</span></div>
+<div class="ln hunk"><span class="gutter">@@</span><span class="gutter">@@</span><span class="sign"></span><span class="code">@@ processIceStateChange — full rewrite @@</span></div>
 <div class="ln del"><span class="gutter">453</span><span class="gutter"></span><span class="sign">−</span><span class="code">      <span class="k">if</span> (newState === <span class="s">'disconnected'</span>) {</div>
 <div class="ln del"><span class="gutter">454</span><span class="gutter"></span><span class="sign">−</span><span class="code">        <span class="k">this</span>.iceConnectionStateDisconnected();</div>
 <div class="ln del"><span class="gutter">455</span><span class="gutter"></span><span class="sign">−</span><span class="code">      }</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">458</span><span class="sign">+</span><span class="code">      <span class="c">// `disconnected` is transient per spec - ICE often recovers on its own.</span></div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">459</span><span class="sign">+</span><span class="code">      <span class="c">// Debounce restarts so we don't issue a re-INVITE for every brief blip</span></div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">460</span><span class="sign">+</span><span class="code">      <span class="c">// (Wi-Fi handoff, momentary packet loss). `failed` is unambiguous, so</span></div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">461</span><span class="sign">+</span><span class="code">      <span class="c">// restart immediately.</span></div>
+<div class="ln add"><span class="gutter"></span><span class="gutter">459</span><span class="sign">+</span><span class="code">      <span class="c">// Debounce restarts so we don't issue a re-INVITE for every brief blip.</span></div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">462</span><span class="sign">+</span><span class="code">      <span class="k">switch</span> (newState) {</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">463</span><span class="sign">+</span><span class="code">        <span class="k">case</span> <span class="s">'failed'</span>:</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">464</span><span class="sign">+</span><span class="code">          <span class="k">this</span>.cancelIceRestartTimer();</div>
@@ -465,262 +723,171 @@
 <div class="ln add"><span class="gutter"></span><span class="gutter">486</span><span class="sign">+</span><span class="code">      }</div>
     </div>
     <div class="rail">
-      <div class="ann good">
-        <div class="ann-head"><span class="dot good"></span>The comment earns its place<span class="lines">L458–461</span></div>
-        Explains <em>why</em> (spec-level "transient" + concrete real-world triggers + asymmetric
-        treatment of <code>failed</code>). This is the kind of comment that survives reviews.
+      <div class="note concept">
+        <div class="note-head"><span class="dot concept"></span>Why <code>failed</code> ≠ <code>disconnected</code><span class="lines">cases</span></div>
+        Per W3C: <code>disconnected</code> means "some checks have failed and we may recover";
+        <code>failed</code> means "we've given up". Treating them the same way (as the old code
+        effectively did) wastes a re-INVITE on every transient Wi-Fi blip.
       </div>
-      <div class="ann good">
-        <div class="ann-head"><span class="dot good"></span>Handles all 5 ICE states<span class="lines">L462–486</span></div>
-        Previous code only reacted to <code>disconnected</code>. New switch covers
-        <code>failed</code> (immediate), <code>disconnected</code> (debounced),
-        <code>connected</code>/<code>completed</code> (cancel + clear), <code>closed</code> (cancel).
-        <code>new</code> and <code>checking</code> correctly fall through as no-ops.
+      <div class="note change">
+        <div class="note-head"><span class="dot change"></span>Asymmetric responses<span class="lines">L463–486</span></div>
+        <b>failed</b> → restart now. <b>disconnected</b> → wait 3 s, then restart if we
+        haven't recovered. <b>connected/completed</b> → cancel any pending restart and clear
+        the warning. <b>closed</b> → cancel only (session is over).
       </div>
-      <div class="ann minor">
-        <div class="ann-head"><span class="dot minor"></span>Status text not cleared on <code>failed</code><span class="lines">L463–466</span></div>
-        If we were showing "ICE Disconnected - waiting for recovery" from a prior
-        <code>disconnected</code>, and the state then transitions <code>disconnected → failed</code>,
-        <code>iceConnectionStateDisconnected()</code> overwrites with "ICE Disconnected - Restarting".
-        Fine. But the <code>connected/completed</code> branch's <code>startsWith('ICE Disconnected')</code>
-        guard won't recognise "ICE Restart: …" once a restart has been issued, so a successful recovery
-        after a failed restart can leave a stale message. Consider always clearing on
-        <code>connected</code>/<code>completed</code>.
+      <div class="note gotcha">
+        <div class="note-head"><span class="dot gotcha"></span>Self-clearing timer<span class="lines">L471</span></div>
+        The callback nulls <code>iceRestartTimer</code> first thing, so the next
+        <code>disconnected</code> can schedule a fresh one. The <code>!== null</code> guard
+        prevents stacking timers while one is already queued.
       </div>
-      <div class="ann minor">
-        <div class="ann-head"><span class="dot minor"></span>Magic number duplicated<span class="lines">L473</span></div>
-        <code>3000</code> appears here and in <code>iceGatheringTimeout</code>. Extract to a named
-        constant (<code>ICE_DISCONNECT_DEBOUNCE_MS</code>) so the intent isn't tangled with an
-        unrelated setting that happens to share the value.
-      </div>
-      <div class="ann q">
-        <div class="ann-head"><span class="dot q"></span>3s the right window?<span class="lines">L473</span></div>
-        Wi-Fi handoff typically completes in 1–3&nbsp;s; LTE/Wi-Fi swap can be longer.
-        Have you observed the typical recovery distribution? If most real recoveries land in
-        &lt;1&nbsp;s, the user sees the warning unnecessarily; if some take &gt;3&nbsp;s, we
-        re-INVITE just before native recovery and double the work.
-      </div>
-      <div class="ann nit">
-        <div class="ann-head"><span class="dot nit"></span>Fragile string-match<span class="lines">L479</span></div>
-        <code>statusMessage.startsWith('ICE Disconnected')</code> couples logic to display text.
-        Cheap to fix with a small state enum (<code>iceUiState</code>) but not blocking.
+      <div class="note concept">
+        <div class="note-head"><span class="dot concept"></span>Missing cases on purpose<span class="lines">no default</span></div>
+        <code>new</code> and <code>checking</code> aren't handled — they're informational and
+        require no action from us. Default fall-through is intentional.
       </div>
     </div>
   </div>
 
-  <!-- hunk: cancelIceRestartTimer + iceConnectionStateDisconnected -->
+  <!-- iceRestart core -->
   <div class="diff-row">
     <div class="diff">
-<div class="ln add"><span class="gutter"></span><span class="gutter">488</span><span class="sign">+</span><span class="code">    cancelIceRestartTimer() {</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">489</span><span class="sign">+</span><span class="code">      <span class="k">if</span> (<span class="k">this</span>.iceRestartTimer !== <span class="k">null</span>) {</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">490</span><span class="sign">+</span><span class="code">        clearTimeout(<span class="k">this</span>.iceRestartTimer);</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">491</span><span class="sign">+</span><span class="code">        <span class="k">this</span>.iceRestartTimer = <span class="k">null</span>;</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">492</span><span class="sign">+</span><span class="code">      }</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">493</span><span class="sign">+</span><span class="code">    },</div>
-<div class="ln"><span class="gutter">494</span><span class="gutter">494</span><span class="sign"> </span><span class="code">    iceConnectionStateDisconnected() {</div>
-<div class="ln"><span class="gutter">495</span><span class="gutter">495</span><span class="sign"> </span><span class="code">      console.log(<span class="s">"ICE Disconnected - Restarting"</span>);</div>
-<div class="ln"><span class="gutter">496</span><span class="gutter">496</span><span class="sign"> </span><span class="code">      <span class="k">this</span>.statusMessage = <span class="s">'ICE Disconnected - Restarting'</span>;</div>
-<div class="ln del"><span class="gutter">497</span><span class="gutter"></span><span class="sign">−</span><span class="code">      <span class="k">this</span>.iceRestart();      </div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">497</span><span class="sign">+</span><span class="code">      <span class="k">this</span>.iceRestart();</div>
-    </div>
-    <div class="rail">
-      <div class="ann good">
-        <div class="ann-head"><span class="dot good"></span>Idempotent cancel<span class="lines">L488–493</span></div>
-        Safe to call from anywhere (no-op when timer is null) — that's why
-        <code>beforeDestroy</code>, <code>sessionTerminated</code>, and four switch branches
-        can all call it without guards.
-      </div>
-      <div class="ann minor">
-        <div class="ann-head"><span class="dot minor"></span>Misleading "Restarting" text<span class="lines">L496</span></div>
-        <code>iceConnectionStateDisconnected()</code> sets statusMessage to "ICE Disconnected -
-        Restarting" <em>before</em> <code>iceRestart()</code>'s guard runs. If the session is no
-        longer <code>Established</code>, we set the text and then silently bail — user briefly
-        sees "Restarting" with no restart actually happening. Swap the order (let
-        <code>iceRestart()</code> check first, then set the status) or move the status update
-        inside <code>iceRestart()</code> after the guard.
-      </div>
-    </div>
-  </div>
-
-  <!-- hunk: iceRestart core refactor (the meat of the PR) -->
-  <div class="diff-row">
-    <div class="diff">
+<div class="ln hunk"><span class="gutter">@@</span><span class="gutter">@@</span><span class="sign"></span><span class="code">@@ iceRestart() — the real fix @@</span></div>
 <div class="ln del"><span class="gutter">500</span><span class="gutter"></span><span class="sign">−</span><span class="code">    iceRestart() {</div>
 <div class="ln del"><span class="gutter">501</span><span class="gutter"></span><span class="sign">−</span><span class="code">      <span class="k">let</span> sdh = <span class="k">this</span>.session.sessionDescriptionHandler;</div>
 <div class="ln del"><span class="gutter">502</span><span class="gutter"></span><span class="sign">−</span><span class="code">      sdh.peerConnection.restartIce();</div>
-<div class="ln del"><span class="gutter">503</span><span class="gutter"></span><span class="sign">−</span><span class="code">      sdh.peerConnection.createOffer({<span class="s">'iceRestart'</span>: <span class="k">true</span>})</div>
-<div class="ln del"><span class="gutter">504</span><span class="gutter"></span><span class="sign">−</span><span class="code">        .then((offer) => { <span class="k">this</span>.iceSessionReInvite(offer); });</div>
+<div class="ln del"><span class="gutter">503</span><span class="gutter"></span><span class="sign">−</span><span class="code">      sdh.peerConnection.createOffer({<span class="s">'iceRestart'</span>: <span class="k">true</span>}).then(...);</div>
 <div class="ln del"><span class="gutter">505</span><span class="gutter"></span><span class="sign">−</span><span class="code">    },</div>
 <div class="ln del"><span class="gutter">506</span><span class="gutter"></span><span class="sign">−</span><span class="code">    iceSessionReInvite(offer) {</div>
-<div class="ln del"><span class="gutter">507</span><span class="gutter"></span><span class="sign">−</span><span class="code">      <span class="k">let</span> sdh = <span class="k">this</span>.session.sessionDescriptionHandler;</div>
 <div class="ln del"><span class="gutter">508</span><span class="gutter"></span><span class="sign">−</span><span class="code">      sdh.peerConnection.setLocalDescription(offer);</div>
 <div class="ln del"><span class="gutter">509</span><span class="gutter"></span><span class="sign">−</span><span class="code">      <span class="k">this</span>.session.sessionDescriptionHandlerModifiersReInvite = [offer];</div>
 <div class="ln del"><span class="gutter">510</span><span class="gutter"></span><span class="sign">−</span><span class="code">      <span class="k">this</span>.session.invite()</div>
-<div class="ln del"><span class="gutter">511</span><span class="gutter"></span><span class="sign">−</span><span class="code">        .then(() => { <span class="k">this</span>.iceRestarted(); })</div>
-<div class="ln del"><span class="gutter">512</span><span class="gutter"></span><span class="sign">−</span><span class="code">        .catch((error) => { <span class="k">this</span>.iceRestartError(error); <span class="k">throw</span> error; });</div>
+<div class="ln del"><span class="gutter">511</span><span class="gutter"></span><span class="sign">−</span><span class="code">        .then(() => <span class="k">this</span>.iceRestarted())</div>
+<div class="ln del"><span class="gutter">512</span><span class="gutter"></span><span class="sign">−</span><span class="code">        .catch((e) => { <span class="k">this</span>.iceRestartError(e); <span class="k">throw</span> e; });</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">499</span><span class="sign">+</span><span class="code">    iceRestart() {</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">500</span><span class="sign">+</span><span class="code">      <span class="c">// Bail out if the session is no longer up - an ICE event (or our</span></div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">501</span><span class="sign">+</span><span class="code">      <span class="c">// debounced timer) can fire after Terminated and session.invite()</span></div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">502</span><span class="sign">+</span><span class="code">      <span class="c">// would throw.</span></div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">503</span><span class="sign">+</span><span class="code">      <span class="k">if</span> (!<span class="k">this</span>.session || <span class="k">this</span>.session.state !== SessionState.Established) {</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">504</span><span class="sign">+</span><span class="code">        <span class="k">return</span>;</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">505</span><span class="sign">+</span><span class="code">      }</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">506</span><span class="sign">+</span><span class="code">      <span class="c">// Issue a re-INVITE with iceRestart so SIP.js drives the offer/answer.</span></div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">507</span><span class="sign">+</span><span class="code">      <span class="c">// SIP.js will call createOffer({iceRestart: true}) internally...</span></div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">510</span><span class="sign">+</span><span class="code">      <span class="c">// Avoid restartIce()/setLocalDescription() manually - races SDP exchange.</span></div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">516</span><span class="sign">+</span><span class="code">      <span class="c">// invite() resolves on SEND, not on ACCEPT in SIP.js 0.21.</span></div>
+<div class="ln add"><span class="gutter"></span><span class="gutter">503</span><span class="sign">+</span><span class="code">      <span class="k">if</span> (!<span class="k">this</span>.session || <span class="k">this</span>.session.state !== SessionState.Established) <span class="k">return</span>;</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">517</span><span class="sign">+</span><span class="code">      <span class="k">this</span>.session.invite({</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">518</span><span class="sign">+</span><span class="code">        sessionDescriptionHandlerOptions: { offerOptions: { iceRestart: <span class="k">true</span> } },</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">521</span><span class="sign">+</span><span class="code">        requestDelegate: {</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">522</span><span class="sign">+</span><span class="code">          onAccept: () => <span class="k">this</span>.iceRestartAccepted(),</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">523</span><span class="sign">+</span><span class="code">          onReject: (response) => <span class="k">this</span>.iceRestartRejected(response),</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">524</span><span class="sign">+</span><span class="code">        }</div>
+<div class="ln add"><span class="gutter"></span><span class="gutter">522</span><span class="sign">+</span><span class="code">          onAccept:  () => <span class="k">this</span>.iceRestartAccepted(),</div>
+<div class="ln add"><span class="gutter"></span><span class="gutter">523</span><span class="sign">+</span><span class="code">          onReject:  (r) => <span class="k">this</span>.iceRestartRejected(r),</div>
+<div class="ln add"><span class="gutter"></span><span class="gutter">524</span><span class="sign">+</span><span class="code">        },</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">525</span><span class="sign">+</span><span class="code">      })</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">526</span><span class="sign">+</span><span class="code">        .then(() => { <span class="k">this</span>.session.logger.debug(<span class="s">'iceRestart: sent'</span>); })</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">529</span><span class="sign">+</span><span class="code">        .catch((error) => { <span class="k">this</span>.iceRestartError(error); });</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">531</span><span class="sign">+</span><span class="code">    },</div>
+<div class="ln add"><span class="gutter"></span><span class="gutter">526</span><span class="sign">+</span><span class="code">        .then(() => <span class="k">this</span>.session.logger.debug(<span class="s">'sent, awaiting final response'</span>))</div>
+<div class="ln add"><span class="gutter"></span><span class="gutter">529</span><span class="sign">+</span><span class="code">        .catch((e) => <span class="k">this</span>.iceRestartError(e));</div>
     </div>
     <div class="rail">
-      <div class="ann good">
-        <div class="ann-head"><span class="dot good"></span>Real bug fix<span class="lines">L499–531</span></div>
-        This is the core of the PR. The previous code did
-        <code>restartIce()</code> + <code>createOffer({iceRestart:true})</code> +
-        <code>setLocalDescription()</code> <em>and then</em> called <code>session.invite()</code> —
-        SIP.js then ran its own offer/answer on top of a mutated PC state.
-        Routing through <code>sessionDescriptionHandlerOptions.offerOptions.iceRestart</code>
-        lets SIP.js own the SDP lifecycle. This matches the documented SIP.js pattern.
+      <div class="note fix">
+        <div class="note-head"><span class="dot fix"></span>The whole point of the PR<span class="lines">L517–525</span></div>
+        Instead of poking <code>peerConnection</code> directly and <em>then</em> calling
+        <code>session.invite()</code>, we pass <code>iceRestart: true</code> through SIP.js's
+        own SDP handler options. SIP.js builds the offer, sets the local description, and
+        sends the re-INVITE as a single transaction.
       </div>
-      <div class="ann good">
-        <div class="ann-head"><span class="dot good"></span>SessionState guard<span class="lines">L503</span></div>
-        Closes the "timer fires after hangup" race directly. Cheap, correct, and the comment
-        names the exact failure mode.
+      <div class="note concept">
+        <div class="note-head"><span class="dot concept"></span>SIP.js 0.21: invite() resolves on SEND<span class="lines">L525–529</span></div>
+        The promise returned by <code>session.invite()</code> resolves as soon as the INVITE is
+        on the wire — <em>not</em> when the peer accepts. That's why the final outcome lives in
+        <code>requestDelegate.onAccept</code> / <code>onReject</code>, and the
+        <code>.then()</code>/<code>.catch()</code> only deal with send-time success/failure
+        (e.g. transport errors, <code>RequestPendingError</code>).
       </div>
-      <div class="ann good">
-        <div class="ann-head"><span class="dot good"></span>Send vs final-response split<span class="lines">L517–529</span></div>
-        Correctly distinguishes <code>RequestPendingError</code> / transport errors
-        (sync send failures) from SIP final-response status (handled by <code>requestDelegate</code>).
-        The old code conflated them and could mis-classify a rejected re-INVITE as success.
+      <div class="note change">
+        <div class="note-head"><span class="dot change"></span>Bail-out guard<span class="lines">L503</span></div>
+        ICE events (and our 3-second debounce timer) can fire <em>after</em> the call has
+        terminated. Calling <code>session.invite()</code> on a non-Established session throws.
+        Cheap check, clear error mode.
       </div>
-      <div class="ann good">
-        <div class="ann-head"><span class="dot good"></span>Dropped <code>throw error</code><span class="lines">L529</span></div>
-        Old code re-threw inside <code>.catch()</code> creating an unhandled rejection. Removed.
-        Nice.
+      <div class="note cleanup">
+        <div class="note-head"><span class="dot cleanup"></span>No more rethrow<span class="lines">L529</span></div>
+        The old <code>.catch()</code> did <code>throw error</code> after handling, producing an
+        unhandled promise rejection. Gone.
       </div>
-      <div class="ann minor">
-        <div class="ann-head"><span class="dot minor"></span>No retry / backoff on reject<span class="lines">L523</span></div>
-        If the proxy returns 491/500/etc. we surface it in the UI and stop. For a brittle
-        network, the next ICE state change will trigger another attempt — but on a permanent
-        SIP-level reject (auth, dialog gone) we'll keep re-INVITEing each time ICE flaps.
-        Worth a max-retry counter or a "give up and terminate" path.
-      </div>
-      <div class="ann q">
-        <div class="ann-head"><span class="dot q"></span>What about <code>1xx</code> only?<span class="lines">L521–524</span></div>
-        <code>requestDelegate</code> also exposes <code>onProgress</code>. Worth wiring up to
-        surface "ICE Restart: Trying" on 100/180 so the user gets feedback during long restarts?
-        Not blocking.
-      </div>
-      <div class="ann info">
-        <div class="ann-head"><span class="dot info"></span>Dead code removed<span class="lines">L506–512 (old)</span></div>
-        <code>iceSessionReInvite</code> and the old <code>iceRestarted</code> are gone; no other
-        callers in the file. Clean removal.
+      <div class="note cleanup">
+        <div class="note-head"><span class="dot cleanup"></span>Dead method removed<span class="lines">old L506–512</span></div>
+        <code>iceSessionReInvite</code> existed only to bridge the manual offer to the invite.
+        Without the manual offer, it has no purpose.
       </div>
     </div>
   </div>
 
-  <!-- hunk: handlers -->
+  <!-- handlers -->
   <div class="diff-row">
     <div class="diff">
+<div class="ln hunk"><span class="gutter">@@</span><span class="gutter">@@</span><span class="sign"></span><span class="code">@@ outcome handlers @@</span></div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">533</span><span class="sign">+</span><span class="code">    iceRestartAccepted() {</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">534</span><span class="sign">+</span><span class="code">      <span class="k">this</span>.session.logger.debug(<span class="s">'iceRestart: RE-invite accepted'</span>);</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">535</span><span class="sign">+</span><span class="code">      <span class="k">this</span>.statusMessage = <span class="s">'ICE Restart: Success'</span>;</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">536</span><span class="sign">+</span><span class="code">    },</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">537</span><span class="sign">+</span><span class="code">    iceRestartRejected(response) {</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">538</span><span class="sign">+</span><span class="code">      <span class="k">const</span> status = response?.message?.statusCode;</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">539</span><span class="sign">+</span><span class="code">      <span class="k">this</span>.session?.logger?.error(<span class="s">`iceRestart: RE-invite rejected (${status ?? 'unknown'})`</span>);</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">540</span><span class="sign">+</span><span class="code">      <span class="k">this</span>.statusMessage = status</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">541</span><span class="sign">+</span><span class="code">        ? <span class="s">`ICE Restart: Rejected (${status})`</span></div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">542</span><span class="sign">+</span><span class="code">        : <span class="s">'ICE Restart: Rejected'</span>;</div>
+<div class="ln add"><span class="gutter"></span><span class="gutter">540</span><span class="sign">+</span><span class="code">      <span class="k">this</span>.statusMessage = status ? <span class="s">`Rejected (${status})`</span> : <span class="s">'Rejected'</span>;</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">543</span><span class="sign">+</span><span class="code">    },</div>
 <div class="ln"><span class="gutter">514</span><span class="gutter">544</span><span class="sign"> </span><span class="code">    iceRestartError(error) {</div>
 <div class="ln"><span class="gutter">515</span><span class="gutter">545</span><span class="sign"> </span><span class="code">      <span class="k">if</span> (error <span class="k">instanceof</span> RequestPendingError) {</div>
-<div class="ln"><span class="gutter">516</span><span class="gutter">546</span><span class="sign"> </span><span class="code">        <span class="k">this</span>.session.logger.error(<span class="s">'iceRestart: RE-invite is already in progress'</span>);</div>
 <div class="ln"><span class="gutter">517</span><span class="gutter">547</span><span class="sign"> </span><span class="code">        <span class="k">this</span>.statusMessage = <span class="s">'ICE Restart: In Progress'</span>;</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">548</span><span class="sign">+</span><span class="code">        <span class="k">return</span>;</div>
 <div class="ln"><span class="gutter">518</span><span class="gutter">549</span><span class="sign"> </span><span class="code">      }</div>
-<div class="ln add"><span class="gutter"></span><span class="gutter">550</span><span class="sign">+</span><span class="code">      <span class="k">this</span>.session?.logger?.error(<span class="s">'iceRestart: RE-invite send failed'</span>, error);</div>
 <div class="ln add"><span class="gutter"></span><span class="gutter">551</span><span class="sign">+</span><span class="code">      <span class="k">this</span>.statusMessage = <span class="s">'ICE Restart: Failed'</span>;</div>
     </div>
     <div class="rail">
-      <div class="ann good">
-        <div class="ann-head"><span class="dot good"></span><code>return</code> after RequestPending<span class="lines">L548</span></div>
-        Old code fell through and overwrote "In Progress" with nothing useful. Fixed.
+      <div class="note change">
+        <div class="note-head"><span class="dot change"></span>Three distinct outcomes<span class="lines">L533–551</span></div>
+        <b>Accepted</b> — far end said 200 OK, media should flow.<br/>
+        <b>Rejected</b> — far end said 4xx/5xx/6xx; we surface the status code so support can triage.<br/>
+        <b>Error</b> — we couldn't even send (transport down, or another transaction in flight).
       </div>
-      <div class="ann good">
-        <div class="ann-head"><span class="dot good"></span>Status-code surfaced<span class="lines">L538–542</span></div>
-        Shows the actual SIP response code in the UI — much easier to triage from a support call.
+      <div class="note fix">
+        <div class="note-head"><span class="dot fix"></span>The missing <code>return</code><span class="lines">L548</span></div>
+        Without it, <code>RequestPendingError</code> would set "In Progress" and then immediately
+        fall through to set "Failed". Now the right message sticks.
       </div>
-      <div class="ann nit">
-        <div class="ann-head"><span class="dot nit"></span>Inconsistent optional chaining<span class="lines">L534 vs 539</span></div>
-        <code>iceRestartAccepted</code> dereferences <code>this.session.logger</code> directly;
-        <code>iceRestartRejected</code> uses <code>this.session?.logger?</code>. Pick one — if
-        the SessionState guard in <code>iceRestart()</code> is doing its job, neither needs
-        optional chaining; otherwise both do.
-      </div>
-      <div class="ann minor">
-        <div class="ann-head"><span class="dot minor"></span>Stale "Success" possible<span class="lines">L535</span></div>
-        Same race as the <code>sessionTerminated</code> note: if the call is torn down between
-        the 200 OK and this handler running, the user sees "ICE Restart: Success" on a dead call.
-        Guard on <code>session.state === Established</code> before writing statusMessage.
+      <div class="note concept">
+        <div class="note-head"><span class="dot concept"></span><code>RequestPendingError</code> in plain English<span class="lines">L545</span></div>
+        SIP only allows one offer/answer transaction per dialog at a time. If a re-INVITE is
+        already in flight and we try another, SIP.js throws this error. It's not a failure —
+        it just means "calm down, the previous one is still happening".
       </div>
     </div>
   </div>
-
 </div>
 
-<!-- ============================================================= -->
-<!-- Findings roll-up                                              -->
-<!-- ============================================================= -->
-<section class="summary">
-  <h2>Roll-up</h2>
+<!-- ========================================== -->
+<!-- How to test                                -->
+<!-- ========================================== -->
+<section>
+  <h2>How to convince yourself this works</h2>
   <div class="grid-2">
-    <div>
-      <p><b>Must address before merge:</b></p>
-      <p style="color:var(--muted)">None.</p>
-      <p><b>Should consider:</b></p>
-      <ul>
-        <li>Late <code>iceRestartAccepted/Rejected</code> repaint after hangup
-          (<span class="dot minor"></span> minor)</li>
-        <li>Status text order in <code>iceConnectionStateDisconnected</code>
-          (<span class="dot minor"></span> minor)</li>
-        <li>No retry cap on persistent SIP rejects
-          (<span class="dot minor"></span> minor)</li>
-        <li>Confirm <code>iceGatheringTimeout: 3000</code>'s effect on dial latency
-          (<span class="dot minor"></span> minor)</li>
-      </ul>
+    <div class="primer">
+      <h4>Reproducing the original bug</h4>
+      <p>
+        On <code>main</code>, dial a call, then trigger an ICE restart (block UDP briefly via
+        firewall, or toggle Wi-Fi). Hang up. Dial again — the next call is silent in one
+        direction. That's the renegotiated PC state leaking into the next session.
+      </p>
     </div>
-    <div>
-      <p><b>Nice-to-have:</b></p>
-      <ul>
-        <li>Name the <code>3000</code> debounce constant
-          (<span class="dot nit"></span> nit)</li>
-        <li>Replace <code>statusMessage.startsWith(...)</code> with an enum
-          (<span class="dot nit"></span> nit)</li>
-        <li>Consistent <code>?.</code> across handlers
-          (<span class="dot nit"></span> nit)</li>
-      </ul>
-      <p><b>Things to test by hand:</b></p>
-      <ul>
-        <li>Flip airplane-mode mid-call (drives <code>disconnected</code> → recovery without restart)</li>
-        <li>Wi-Fi → cellular handoff (debounced restart path)</li>
-        <li>Hard kill of media path so ICE goes straight to <code>failed</code></li>
-        <li>Hang up <em>during</em> a re-INVITE (the race annotations above)</li>
+    <div class="primer">
+      <h4>Verifying the fix on this branch</h4>
+      <p>Same sequence — next call has audio.</p>
+      <p>Plus, in Chrome DevTools' <code>chrome://webrtc-internals</code>, you should see:</p>
+      <ul style="font-size:12.5px">
+        <li>A single <code>setLocalDescription</code> call per restart, not two</li>
+        <li><code>iceconnectionstate</code> walks <code>disconnected → checking → connected</code> after the re-INVITE</li>
+        <li>For brief blips, <code>disconnected → connected</code> with <b>no</b> re-INVITE at all (the debounce caught it)</li>
       </ul>
     </div>
   </div>
+  <h3>Scenarios worth manually exercising</h3>
+  <ul>
+    <li><b>Wi-Fi handoff mid-call</b> — should trigger <code>disconnected</code>, then self-recover; no re-INVITE.</li>
+    <li><b>Hard network drop &gt; 3 s</b> — debounce expires, re-INVITE goes out, audio resumes.</li>
+    <li><b>Permanent break</b> — eventually <code>failed</code>; immediate re-INVITE; if it rejects, status shows the code.</li>
+    <li><b>Hang up <em>while</em> a re-INVITE is in flight</b> — no crash; SessionState guard prevents follow-on calls.</li>
+  </ul>
 </section>
 
 <footer class="page">
-  Generated locally from <code>git diff main...HEAD</code> on branch <code>NUB-2026</code>.
+  Generated from <code>git diff main...HEAD</code> on branch <code>NUB-2026</code>.
+  &nbsp;·&nbsp; Pair this with <code>pr-review.html</code> for the line-by-line review.
 </footer>
 
 </div>
