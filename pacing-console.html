@@ -1,0 +1,1556 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Predictive Dialler Pacing Console</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #071012;
+      --surface: #0d1719;
+      --surface-raised: #111e21;
+      --line: #26383b;
+      --line-bright: #3c5559;
+      --text: #edf7f5;
+      --muted: #82979a;
+      --cyan: #35d5d1;
+      --cyan-soft: #173f41;
+      --amber: #f1b957;
+      --amber-soft: #47381f;
+      --magenta: #ed6fc6;
+      --magenta-soft: #48243e;
+      --green: #77dc9a;
+      --green-soft: #1d422d;
+      --coral: #f2796f;
+      --grey: #5d6d70;
+      --risk-angle: 254deg;
+      font-family: "Avenir Next", "Segoe UI", Arial, sans-serif;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-width: 1100px;
+      height: 100%;
+      min-height: 720px;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      content: "";
+      background-image:
+        linear-gradient(rgba(53, 213, 209, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(53, 213, 209, 0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    button {
+      font: inherit;
+      letter-spacing: 0;
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: 72px minmax(0, 1fr) 42px;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 270px minmax(360px, 1fr) auto;
+      align-items: stretch;
+      border-bottom: 1px solid var(--line-bright);
+      background: #091315;
+    }
+
+    .brand {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 24px 0 30px;
+      overflow: hidden;
+      background: var(--cyan);
+      color: #041012;
+    }
+
+    .brand::after {
+      position: absolute;
+      right: -26px;
+      width: 52px;
+      height: 52px;
+      content: "";
+      border-radius: 50%;
+      background: #091315;
+    }
+
+    .brand-mark {
+      display: grid;
+      grid-template-columns: repeat(2, 8px);
+      grid-template-rows: repeat(2, 8px);
+      gap: 3px;
+      flex: none;
+    }
+
+    .brand-mark span {
+      background: #041012;
+    }
+
+    .brand-copy strong {
+      display: block;
+      font-size: 17px;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .brand-copy small {
+      display: block;
+      margin-top: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .context {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      min-width: 0;
+      padding: 0 28px 0 42px;
+    }
+
+    .context-block {
+      min-width: 0;
+    }
+
+    .eyebrow {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .context-value {
+      display: block;
+      overflow: hidden;
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 650;
+      line-height: 1.15;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .live-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border: 1px solid #37604a;
+      border-radius: 3px;
+      background: #10251a;
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 0 rgba(119, 220, 154, 0.5);
+      animation: status-pulse 2.4s infinite;
+    }
+
+    .telemetry-id {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      padding: 0 26px;
+      border-left: 1px solid var(--line);
+      background: #0c1719;
+    }
+
+    .telemetry-value {
+      display: block;
+      color: var(--cyan);
+      font-size: 14px;
+      font-weight: 750;
+      text-align: right;
+    }
+
+    .console {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      grid-template-rows: 304px 206px minmax(0, 1fr);
+      gap: 12px;
+      min-height: 0;
+      padding: 14px 18px;
+    }
+
+    .panel {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--surface);
+    }
+
+    .panel::before {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 36px;
+      content: "";
+      background: var(--panel-accent, var(--cyan));
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 42px;
+      padding: 0 15px 0 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.012);
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .panel-code {
+      color: var(--panel-accent, var(--cyan));
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .panel-state {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .capacity {
+      --panel-accent: var(--cyan);
+      grid-column: 1 / span 3;
+      grid-row: 1;
+    }
+
+    .risk {
+      --panel-accent: var(--magenta);
+      grid-column: 4 / span 4;
+      grid-row: 1;
+    }
+
+    .pipeline {
+      --panel-accent: var(--amber);
+      grid-column: 8 / span 5;
+      grid-row: 1;
+    }
+
+    .decision {
+      --panel-accent: var(--amber);
+      grid-column: 1 / span 12;
+      grid-row: 2;
+    }
+
+    .history {
+      --panel-accent: var(--green);
+      grid-column: 1 / span 8;
+      grid-row: 3;
+    }
+
+    .health {
+      --panel-accent: var(--magenta);
+      grid-column: 9 / span 4;
+      grid-row: 3;
+    }
+
+    .capacity-body {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      height: calc(100% - 42px);
+      padding: 14px 16px;
+    }
+
+    .metric-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .metric {
+      padding-right: 10px;
+      border-right: 1px solid var(--line);
+    }
+
+    .metric:last-child {
+      padding-right: 0;
+      border-right: 0;
+    }
+
+    .metric-number {
+      display: block;
+      color: var(--text);
+      font-size: 30px;
+      font-weight: 720;
+      line-height: 1;
+    }
+
+    .metric-number.cyan {
+      color: var(--cyan);
+    }
+
+    .metric-number.amber {
+      color: var(--amber);
+    }
+
+    .metric-label {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+
+    .agent-deck {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 7px;
+      margin: 16px 0 12px;
+    }
+
+    .agent {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 42px;
+      overflow: hidden;
+      border: 1px solid var(--line-bright);
+      border-radius: 3px;
+      background: #101b1d;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .agent.idle {
+      border-color: #2f7d7b;
+      background: var(--cyan-soft);
+      color: var(--cyan);
+    }
+
+    .agent.busy::after {
+      position: absolute;
+      right: -8px;
+      bottom: -8px;
+      width: 23px;
+      height: 23px;
+      content: "";
+      border: 1px solid rgba(241, 185, 87, 0.55);
+      border-radius: 50%;
+      animation: orbit-pulse 3.4s infinite ease-in-out;
+    }
+
+    .probability-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+      margin-top: auto;
+    }
+
+    .probability-label,
+    .probability-value {
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+
+    .probability-value {
+      color: var(--amber);
+    }
+
+    .probability-track {
+      height: 5px;
+      overflow: hidden;
+      border-radius: 2px;
+      background: #253033;
+    }
+
+    .probability-fill {
+      width: 26.2%;
+      height: 100%;
+      background: var(--amber);
+    }
+
+    .risk-body {
+      display: grid;
+      grid-template-columns: 46% 54%;
+      align-items: center;
+      height: calc(100% - 42px);
+      padding: 14px 18px;
+    }
+
+    .risk-dial-wrap {
+      display: grid;
+      place-items: center;
+    }
+
+    .risk-dial {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 164px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: conic-gradient(var(--magenta) 0 var(--risk-angle), #233033 var(--risk-angle) 360deg);
+      box-shadow: 0 0 28px rgba(237, 111, 198, 0.08);
+      transition: background 500ms ease;
+    }
+
+    .risk-dial::before {
+      position: absolute;
+      width: 126px;
+      aspect-ratio: 1;
+      content: "";
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: var(--surface);
+    }
+
+    .risk-dial::after {
+      position: absolute;
+      width: 110px;
+      aspect-ratio: 1;
+      content: "";
+      border: 1px dashed rgba(237, 111, 198, 0.3);
+      border-radius: 50%;
+      animation: slow-spin 16s linear infinite;
+    }
+
+    .risk-reading {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+    }
+
+    .risk-reading strong {
+      display: block;
+      color: var(--magenta);
+      font-size: 35px;
+      font-weight: 720;
+      line-height: 1;
+    }
+
+    .risk-reading small {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+
+    .risk-limit {
+      margin-top: 10px;
+      color: var(--text);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .risk-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+      padding-left: 12px;
+    }
+
+    .risk-stat {
+      padding: 9px 10px;
+      border-left: 2px solid var(--line-bright);
+      background: rgba(255, 255, 255, 0.018);
+    }
+
+    .risk-stat.highlight {
+      border-left-color: var(--magenta);
+      background: var(--magenta-soft);
+    }
+
+    .risk-stat strong {
+      display: block;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .risk-stat span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+
+    .headroom {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border: 1px solid #315c45;
+      border-radius: 3px;
+      color: var(--green);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .pipeline-body {
+      display: grid;
+      grid-template-rows: 44px 1fr 35px;
+      height: calc(100% - 42px);
+      padding: 12px 14px 10px;
+    }
+
+    .pipeline-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pipeline-total strong {
+      color: var(--amber);
+      font-size: 24px;
+      font-weight: 720;
+    }
+
+    .pipeline-total span {
+      margin-left: 7px;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+
+    .expected-chip {
+      padding: 6px 9px;
+      border: 1px solid #725a2d;
+      border-radius: 3px;
+      background: var(--amber-soft);
+      color: var(--amber);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .age-grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1.05fr 1fr 1.18fr 0.9fr;
+      gap: 5px;
+      padding-top: 18px;
+    }
+
+    .flight-line {
+      position: absolute;
+      top: 7px;
+      right: 0;
+      left: 0;
+      height: 2px;
+      overflow: hidden;
+      background: #3b3528;
+    }
+
+    .flight-packet {
+      position: absolute;
+      top: -2px;
+      left: -10px;
+      width: 8px;
+      height: 6px;
+      border-radius: 1px;
+      background: var(--amber);
+      box-shadow: 0 0 8px rgba(241, 185, 87, 0.65);
+      animation: flight 6s linear infinite;
+    }
+
+    .flight-packet:nth-child(2) { animation-delay: -1.1s; }
+    .flight-packet:nth-child(3) { animation-delay: -2.3s; }
+    .flight-packet:nth-child(4) { animation-delay: -3.7s; }
+    .flight-packet:nth-child(5) { animation-delay: -4.8s; }
+
+    .age-cell {
+      position: relative;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid #3c3529;
+      border-radius: 3px;
+      background: #171914;
+    }
+
+    .age-cell::after {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: var(--age-fill);
+      content: "";
+      background: rgba(241, 185, 87, var(--age-opacity));
+      transition: height 450ms ease;
+    }
+
+    .age-label {
+      position: relative;
+      z-index: 1;
+      padding: 7px 8px;
+      border-bottom: 1px solid #3c3529;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .age-count {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .age-risk {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 8px;
+      color: var(--amber);
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .outcomes {
+      display: flex;
+      align-items: end;
+      gap: 16px;
+      padding-top: 8px;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+
+    .outcomes strong {
+      margin-left: 4px;
+      color: var(--text);
+      font-size: 10px;
+    }
+
+    .decision-body {
+      display: grid;
+      grid-template-rows: 94px 1fr;
+      height: calc(100% - 42px);
+      padding: 11px 18px 10px;
+    }
+
+    .decision-flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(110px, 1fr));
+      gap: 26px;
+      align-items: center;
+    }
+
+    .decision-node {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      min-width: 0;
+      height: 62px;
+      padding: 0 13px;
+      border: 1px solid var(--line-bright);
+      border-radius: 3px;
+      background: #111c1e;
+    }
+
+    .decision-node:not(:last-child)::after {
+      position: absolute;
+      top: 29px;
+      left: calc(100% + 1px);
+      width: 27px;
+      height: 3px;
+      content: "";
+      background: #36484b;
+    }
+
+    .decision-node:not(:last-child)::before {
+      position: absolute;
+      z-index: 2;
+      top: 27px;
+      left: calc(100% + 1px);
+      width: 7px;
+      height: 7px;
+      content: "";
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 8px rgba(241, 185, 87, 0.7);
+      animation: energy-transfer 2.8s linear infinite;
+    }
+
+    .decision-node.binding {
+      border-color: var(--amber);
+      background: var(--amber-soft);
+      box-shadow: inset 0 0 0 1px rgba(241, 185, 87, 0.16);
+    }
+
+    .decision-node.result {
+      border-color: var(--cyan);
+      background: var(--cyan-soft);
+    }
+
+    .node-copy span {
+      display: block;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .node-copy em {
+      display: block;
+      margin-top: 6px;
+      color: var(--amber);
+      font-size: 8px;
+      font-style: normal;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .decision-node strong {
+      color: var(--text);
+      font-size: 27px;
+      font-weight: 700;
+    }
+
+    .decision-node.result strong {
+      color: var(--cyan);
+    }
+
+    .model-compare {
+      display: grid;
+      grid-template-columns: 124px repeat(3, 1fr) auto;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+    }
+
+    .compare-label {
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .compare-item {
+      display: grid;
+      grid-template-columns: 66px 1fr 30px;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+
+    .compare-track {
+      height: 5px;
+      overflow: hidden;
+      border-radius: 2px;
+      background: #253033;
+    }
+
+    .compare-fill {
+      width: var(--compare-width);
+      height: 100%;
+      background: var(--compare-color);
+    }
+
+    .compare-item strong {
+      color: var(--compare-color);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .shadow-chip {
+      padding: 5px 8px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .panel-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .segment-button {
+      min-width: 38px;
+      height: 25px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .segment-button:hover,
+    .segment-button.active {
+      border-color: var(--green);
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .history-body {
+      display: grid;
+      grid-template-rows: 1fr 27px;
+      height: calc(100% - 42px);
+      padding: 10px 14px 8px;
+    }
+
+    .chart {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      border-left: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background-image: linear-gradient(rgba(60, 85, 89, 0.25) 1px, transparent 1px);
+      background-size: 100% 25%;
+    }
+
+    .chart svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .chart-line {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .occupancy-line {
+      stroke: var(--cyan);
+      stroke-width: 2.5;
+    }
+
+    .risk-line {
+      stroke: var(--magenta);
+      stroke-width: 2;
+    }
+
+    .nuisance-line {
+      stroke: var(--amber);
+      stroke-width: 1.5;
+      stroke-dasharray: 5 5;
+    }
+
+    .risk-boundary {
+      stroke: rgba(242, 121, 111, 0.75);
+      stroke-width: 1;
+      stroke-dasharray: 3 5;
+    }
+
+    .scan-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(119, 220, 154, 0.55);
+      box-shadow: 0 0 10px rgba(119, 220, 154, 0.35);
+      animation: chart-scan 8s linear infinite;
+    }
+
+    .chart-marker {
+      position: absolute;
+      top: 23%;
+      right: 10%;
+      width: 7px;
+      height: 7px;
+      border: 2px solid var(--bg);
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(53, 213, 209, 0.16);
+    }
+
+    .chart-legend {
+      display: flex;
+      align-items: end;
+      gap: 22px;
+      padding-left: 4px;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-line {
+      width: 15px;
+      height: 2px;
+      background: var(--legend-color);
+    }
+
+    .legend-item strong {
+      color: var(--legend-color);
+      font-size: 10px;
+    }
+
+    .health-body {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      height: calc(100% - 42px);
+      padding: 11px 15px;
+    }
+
+    .confidence-strip {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      padding: 9px 11px;
+      border: 1px solid #4e3c4b;
+      border-radius: 3px;
+      background: #201720;
+    }
+
+    .confidence-strip span {
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .confidence-strip strong {
+      color: var(--magenta);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .health-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 18px;
+      align-content: center;
+      min-height: 0;
+    }
+
+    .health-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-width: 0;
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(60, 85, 89, 0.45);
+    }
+
+    .health-row span {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 750;
+      text-overflow: ellipsis;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .health-row strong {
+      margin-left: 8px;
+      color: var(--text);
+      font-size: 10px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .health-row strong.magenta {
+      color: var(--magenta);
+    }
+
+    .health-row strong.green {
+      color: var(--green);
+    }
+
+    .health-footer {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      padding-top: 10px;
+    }
+
+    .health-status {
+      padding: 7px 6px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 800;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .health-status strong {
+      display: block;
+      margin-top: 4px;
+      color: var(--green);
+      font-size: 11px;
+    }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 19px;
+      border-top: 1px solid var(--line);
+      background: #091315;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+
+    .footer-left,
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 17px;
+    }
+
+    .footer-key {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .key-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 1px;
+      background: var(--key-color);
+    }
+
+    .read-only {
+      padding: 5px 8px;
+      border: 1px solid var(--line-bright);
+      border-radius: 2px;
+      color: var(--text);
+    }
+
+    .heartbeat-flash {
+      position: fixed;
+      top: 72px;
+      right: 0;
+      left: 0;
+      z-index: 20;
+      height: 1px;
+      pointer-events: none;
+      background: var(--cyan);
+      opacity: 0;
+    }
+
+    .tick .heartbeat-flash {
+      animation: heartbeat-flash 700ms ease-out;
+    }
+
+    .paused * {
+      animation-play-state: paused !important;
+    }
+
+    .static * {
+      animation-play-state: paused !important;
+      caret-color: transparent !important;
+    }
+
+    @keyframes status-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(119, 220, 154, 0.45); }
+      50% { box-shadow: 0 0 0 6px rgba(119, 220, 154, 0); }
+    }
+
+    @keyframes orbit-pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 0.85; transform: scale(1.12); }
+    }
+
+    @keyframes slow-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes flight {
+      from { left: -10px; }
+      to { left: calc(100% + 5px); }
+    }
+
+    @keyframes energy-transfer {
+      from { transform: translateX(0); }
+      to { transform: translateX(20px); }
+    }
+
+    @keyframes chart-scan {
+      from { left: 0; }
+      to { left: 100%; }
+    }
+
+    @keyframes heartbeat-flash {
+      0% { opacity: 0; transform: scaleX(0); transform-origin: left; }
+      25% { opacity: 0.65; }
+      100% { opacity: 0; transform: scaleX(1); transform-origin: left; }
+    }
+
+    @media (max-width: 1450px), (max-height: 850px) {
+      .console {
+        grid-template-rows: 278px 190px minmax(0, 1fr);
+      }
+
+      .metric-number { font-size: 25px; }
+      .risk-dial { width: 138px; }
+      .risk-dial::before { width: 108px; }
+      .risk-dial::after { width: 94px; }
+      .risk-reading strong { font-size: 30px; }
+      .agent { min-height: 34px; }
+      .age-count { font-size: 23px; }
+      .decision-flow { gap: 16px; }
+      .decision-node:not(:last-child)::after { width: 17px; }
+      .decision-node { height: 54px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="heartbeat-flash"></div>
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="brand-copy">
+          <strong>Pacing Console</strong>
+          <small>Predictive Dialler</small>
+        </div>
+      </div>
+
+      <div class="context">
+        <div class="context-block">
+          <span class="eyebrow">Campaign</span>
+          <span class="context-value">Renewals / Campaign 42</span>
+        </div>
+        <div class="context-block">
+          <span class="eyebrow">Switch</span>
+          <span class="context-value">London A</span>
+        </div>
+        <div class="context-block">
+          <span class="eyebrow">Effective model</span>
+          <span class="context-value">Age-aware</span>
+        </div>
+        <div class="live-chip" id="live-chip">
+          <span class="live-dot"></span>
+          <span id="live-label">Live / Normal</span>
+        </div>
+      </div>
+
+      <div class="telemetry-id">
+        <div>
+          <span class="eyebrow">Heartbeat</span>
+          <span class="telemetry-value" id="heartbeat">184221</span>
+        </div>
+        <div>
+          <span class="eyebrow">UTC</span>
+          <span class="telemetry-value" id="clock">14:32:17</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="console">
+      <section class="panel capacity" aria-labelledby="capacity-title">
+        <div class="panel-header">
+          <h2 class="panel-title" id="capacity-title"><span class="panel-code">A01</span> Agent capacity</h2>
+          <span class="panel-state">Window 30s</span>
+        </div>
+        <div class="capacity-body">
+          <div class="metric-pair">
+            <div class="metric">
+              <strong class="metric-number cyan">4</strong>
+              <span class="metric-label">Eligible idle now</span>
+            </div>
+            <div class="metric">
+              <strong class="metric-number amber">+1.20</strong>
+              <span class="metric-label">Forecast releases</span>
+            </div>
+          </div>
+
+          <div class="agent-deck" aria-label="Ten-agent team state">
+            <div class="agent idle">READY</div>
+            <div class="agent idle">READY</div>
+            <div class="agent idle">READY</div>
+            <div class="agent idle">READY</div>
+            <div class="agent busy">Q .20</div>
+            <div class="agent busy">Q .20</div>
+            <div class="agent busy">Q .20</div>
+            <div class="agent busy">Q .20</div>
+            <div class="agent busy">Q .20</div>
+            <div class="agent busy">Q .20</div>
+          </div>
+
+          <div class="probability-row">
+            <span class="probability-label">No additional release</span>
+            <div class="probability-track"><div class="probability-fill"></div></div>
+            <strong class="probability-value">26.2%</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel risk" aria-labelledby="risk-title">
+        <div class="panel-header">
+          <h2 class="panel-title" id="risk-title"><span class="panel-code">R02</span> Risk envelope</h2>
+          <span class="panel-state">Joint overflow</span>
+        </div>
+        <div class="risk-body">
+          <div class="risk-dial-wrap">
+            <div class="risk-dial" id="risk-dial">
+              <div class="risk-reading">
+                <strong id="risk-reading">2.12%</strong>
+                <small>After admission</small>
+              </div>
+            </div>
+            <div class="risk-limit">Limit 3.00%</div>
+          </div>
+
+          <div class="risk-stats">
+            <div class="risk-stat">
+              <strong>1.41%</strong>
+              <span>Before</span>
+            </div>
+            <div class="risk-stat highlight">
+              <strong id="risk-next">2.35%</strong>
+              <span>With next dial</span>
+            </div>
+            <div class="risk-stat">
+              <strong id="expected-answers">2.84</strong>
+              <span>Expected live</span>
+            </div>
+            <div class="risk-stat">
+              <strong id="expected-unserved">0.060</strong>
+              <span>Expected unserved</span>
+            </div>
+            <div class="headroom">
+              <span>Risk headroom</span>
+              <strong id="risk-headroom">+0.88 pp</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel pipeline" aria-labelledby="pipeline-title">
+        <div class="panel-header">
+          <h2 class="panel-title" id="pipeline-title"><span class="panel-code">C03</span> Call pipeline</h2>
+          <span class="panel-state">Fresh pU 0.327</span>
+        </div>
+        <div class="pipeline-body">
+          <div class="pipeline-summary">
+            <div class="pipeline-total"><strong>13</strong><span>Unresolved attempts</span></div>
+            <div class="expected-chip">E[X] 2.84</div>
+          </div>
+
+          <div class="age-grid">
+            <div class="flight-line" aria-hidden="true">
+              <span class="flight-packet"></span>
+              <span class="flight-packet"></span>
+              <span class="flight-packet"></span>
+              <span class="flight-packet"></span>
+              <span class="flight-packet"></span>
+            </div>
+            <div class="age-cell" style="--age-fill: 82%; --age-opacity: .22;">
+              <span class="age-label">0-5 seconds</span>
+              <strong class="age-count">4</strong>
+              <span class="age-risk"><span>SUM P</span><strong>1.20</strong></span>
+            </div>
+            <div class="age-cell" style="--age-fill: 65%; --age-opacity: .18;">
+              <span class="age-label">5-10 seconds</span>
+              <strong class="age-count">3</strong>
+              <span class="age-risk"><span>SUM P</span><strong>0.75</strong></span>
+            </div>
+            <div class="age-cell" style="--age-fill: 43%; --age-opacity: .14;">
+              <span class="age-label">10-20 seconds</span>
+              <strong class="age-count">4</strong>
+              <span class="age-risk"><span>SUM P</span><strong>0.72</strong></span>
+            </div>
+            <div class="age-cell" style="--age-fill: 18%; --age-opacity: .1;">
+              <span class="age-label">20-30 seconds</span>
+              <strong class="age-count">2</strong>
+              <span class="age-risk"><span>SUM P</span><strong>0.17</strong></span>
+            </div>
+          </div>
+
+          <div class="outcomes">
+            <span>Last heartbeat</span>
+            <span>Connected <strong>1</strong></span>
+            <span>Machine <strong>2</strong></span>
+            <span>No answer <strong>1</strong></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel decision" aria-labelledby="decision-title">
+        <div class="panel-header">
+          <h2 class="panel-title" id="decision-title"><span class="panel-code">D04</span> Admission decision path</h2>
+          <span class="panel-state">2 admitted / 2 submitted</span>
+        </div>
+        <div class="decision-body">
+          <div class="decision-flow">
+            <div class="decision-node">
+              <div class="node-copy"><span>Risk allowance</span></div>
+              <strong>6</strong>
+            </div>
+            <div class="decision-node">
+              <div class="node-copy"><span>Burst spread</span></div>
+              <strong>4</strong>
+            </div>
+            <div class="decision-node">
+              <div class="node-copy"><span>Lines</span></div>
+              <strong>9</strong>
+            </div>
+            <div class="decision-node">
+              <div class="node-copy"><span>Hopper</span></div>
+              <strong>57</strong>
+            </div>
+            <div class="decision-node binding">
+              <div class="node-copy"><span>System CPS</span><em>Binding</em></div>
+              <strong>2</strong>
+            </div>
+            <div class="decision-node result">
+              <div class="node-copy"><span>Admit now</span></div>
+              <strong>2</strong>
+            </div>
+          </div>
+
+          <div class="model-compare">
+            <span class="compare-label">Shadow comparison</span>
+            <div class="compare-item" style="--compare-color: var(--coral);">
+              <span>Legacy</span>
+              <div class="compare-track"><div class="compare-fill" style="--compare-width: 100%;"></div></div>
+              <strong>20</strong>
+            </div>
+            <div class="compare-item" style="--compare-color: var(--magenta);">
+              <span>Binomial</span>
+              <div class="compare-track"><div class="compare-fill" style="--compare-width: 50%;"></div></div>
+              <strong>10</strong>
+            </div>
+            <div class="compare-item" style="--compare-color: var(--cyan);">
+              <span>Age-aware</span>
+              <div class="compare-track"><div class="compare-fill" style="--compare-width: 65%;"></div></div>
+              <strong>13</strong>
+            </div>
+            <span class="shadow-chip">Same heartbeat inputs</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel history" aria-labelledby="history-title">
+        <div class="panel-header">
+          <h2 class="panel-title" id="history-title"><span class="panel-code">T05</span> Operational history</h2>
+          <div class="panel-actions" aria-label="History controls">
+            <button class="segment-button active" type="button" data-range="15">15m</button>
+            <button class="segment-button" type="button" data-range="60">60m</button>
+            <button class="segment-button" id="feed-control" type="button">Pause</button>
+          </div>
+        </div>
+        <div class="history-body">
+          <div class="chart" aria-label="Occupancy, predicted risk and nuisance trend chart">
+            <svg viewBox="0 0 1000 220" preserveAspectRatio="none" role="img" aria-label="Operational trends">
+              <line class="risk-boundary" x1="0" y1="55" x2="1000" y2="55"></line>
+              <path class="chart-line occupancy-line" d="M0,132 C55,124 86,132 132,116 S226,96 278,104 S365,79 420,84 S515,71 566,77 S660,58 724,70 S817,52 872,61 S948,44 1000,49"></path>
+              <path class="chart-line risk-line" d="M0,174 C62,168 98,154 148,162 S246,138 298,146 S390,116 446,128 S530,103 596,118 S690,89 748,104 S842,76 902,93 S960,75 1000,82"></path>
+              <path class="chart-line nuisance-line" d="M0,188 C90,184 146,180 212,182 S342,165 410,169 S536,151 606,156 S730,143 806,147 S916,134 1000,139"></path>
+            </svg>
+            <div class="scan-line"></div>
+            <div class="chart-marker"></div>
+          </div>
+          <div class="chart-legend">
+            <span class="legend-item" style="--legend-color: var(--cyan);"><span class="legend-line"></span>Occupancy <strong>77%</strong></span>
+            <span class="legend-item" style="--legend-color: var(--magenta);"><span class="legend-line"></span>Predicted risk <strong>2.12%</strong></span>
+            <span class="legend-item" style="--legend-color: var(--amber);"><span class="legend-line"></span>Actual nuisance <strong>1.84%</strong></span>
+            <span class="legend-item" style="--legend-color: var(--coral);"><span class="legend-line"></span>Risk limit <strong>3.00%</strong></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel health" aria-labelledby="health-title">
+        <div class="panel-header">
+          <h2 class="panel-title" id="health-title"><span class="panel-code">M06</span> Model health</h2>
+          <span class="panel-state">Fresh 2s ago</span>
+        </div>
+        <div class="health-body">
+          <div class="confidence-strip">
+            <span>Calibration confidence</span>
+            <strong>Operational</strong>
+          </div>
+
+          <div class="health-grid">
+            <div class="health-row"><span>Live samples</span><strong>100</strong></div>
+            <div class="health-row"><span>Age curve</span><strong>Tenant / 1,240</strong></div>
+            <div class="health-row"><span>pHat</span><strong>25.0%</strong></div>
+            <div class="health-row"><span>Survival</span><strong>Campaign / 286</strong></div>
+            <div class="health-row"><span>pUpper</span><strong class="magenta">32.7%</strong></div>
+            <div class="health-row"><span>Fallback</span><strong class="green">None</strong></div>
+          </div>
+
+          <div class="health-footer">
+            <div class="health-status">Retention<strong>0 held</strong></div>
+            <div class="health-status">Drop valve<strong>Standby</strong></div>
+            <div class="health-status">Blender shadow<strong>0.0</strong></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-left">
+        <span class="footer-key"><span class="key-dot" style="--key-color: var(--cyan);"></span>Capacity</span>
+        <span class="footer-key"><span class="key-dot" style="--key-color: var(--amber);"></span>In flight</span>
+        <span class="footer-key"><span class="key-dot" style="--key-color: var(--magenta);"></span>Statistical risk</span>
+        <span class="footer-key"><span class="key-dot" style="--key-color: var(--green);"></span>Healthy</span>
+      </div>
+      <div class="footer-right">
+        <span>Snapshot schema v1</span>
+        <span>Decision sequence <strong id="footer-heartbeat">184221</strong></span>
+        <span class="read-only">Read-only telemetry view</span>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      const isStatic = params.has("static");
+      const app = document.getElementById("app");
+      const heartbeat = document.getElementById("heartbeat");
+      const footerHeartbeat = document.getElementById("footer-heartbeat");
+      const clock = document.getElementById("clock");
+      const riskReading = document.getElementById("risk-reading");
+      const riskNext = document.getElementById("risk-next");
+      const expectedAnswers = document.getElementById("expected-answers");
+      const expectedUnserved = document.getElementById("expected-unserved");
+      const riskHeadroom = document.getElementById("risk-headroom");
+      const feedControl = document.getElementById("feed-control");
+      let heartbeatValue = 184221;
+      let tick = 0;
+      let paused = false;
+
+      if (isStatic) {
+        document.documentElement.classList.add("static");
+        return;
+      }
+
+      const renderClock = () => {
+        const now = new Date();
+        clock.textContent = now.toISOString().slice(11, 19);
+      };
+
+      const renderHeartbeat = () => {
+        if (paused) return;
+
+        tick += 1;
+        heartbeatValue += 1;
+        const risk = 2.12 + Math.sin(tick * 0.78) * 0.12;
+        const next = risk + 0.23 + Math.cos(tick * 0.47) * 0.04;
+        const answers = 2.84 + Math.sin(tick * 0.42) * 0.13;
+        const unserved = answers * risk / 100;
+
+        heartbeat.textContent = String(heartbeatValue);
+        footerHeartbeat.textContent = String(heartbeatValue);
+        riskReading.textContent = `${risk.toFixed(2)}%`;
+        riskNext.textContent = `${next.toFixed(2)}%`;
+        expectedAnswers.textContent = answers.toFixed(2);
+        expectedUnserved.textContent = unserved.toFixed(3);
+        riskHeadroom.textContent = `+${(3 - risk).toFixed(2)} pp`;
+        document.documentElement.style.setProperty("--risk-angle", `${risk / 3 * 360}deg`);
+
+        app.classList.remove("tick");
+        void app.offsetWidth;
+        app.classList.add("tick");
+      };
+
+      document.querySelectorAll("[data-range]").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll("[data-range]").forEach((candidate) => candidate.classList.remove("active"));
+          button.classList.add("active");
+        });
+      });
+
+      feedControl.addEventListener("click", () => {
+        paused = !paused;
+        app.classList.toggle("paused", paused);
+        feedControl.textContent = paused ? "Resume" : "Pause";
+        document.getElementById("live-label").textContent = paused ? "Playback paused" : "Live / Normal";
+      });
+
+      renderClock();
+      window.setInterval(renderClock, 1000);
+      window.setInterval(renderHeartbeat, 2400);
+    })();
+  </script>
+</body>
+</html>
