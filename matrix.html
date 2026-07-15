@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matrix Rain</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+  }
+</style>
+</head>
+<body>
+<canvas id="matrix"></canvas>
+<script>
+(function () {
+  const canvas = document.getElementById('matrix');
+  const ctx = canvas.getContext('2d');
+
+  // Half-width katakana (as used in the film credits) plus digits and a few latin chars.
+  const KATAKANA = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ';
+  const GLYPHS = (KATAKANA + '0123456789Z:・."=*+-<>¦｜').split('');
+
+  const FONT_SIZE = 18;
+  let columns = 0;
+  let drops = [];   // current head row per column
+  let speeds = [];  // rows advanced per tick (varied per column)
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    columns = Math.ceil(window.innerWidth / FONT_SIZE);
+    drops = Array.from({ length: columns }, () => Math.random() * -50);
+    speeds = Array.from({ length: columns }, () => 0.5 + Math.random() * 0.75);
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+    ctx.font = FONT_SIZE + 'px monospace';
+  }
+
+  function randomGlyph() {
+    return GLYPHS[(Math.random() * GLYPHS.length) | 0];
+  }
+
+  function draw() {
+    // Translucent black overlay: this is what makes the trails fade.
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+    ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+    for (let i = 0; i < columns; i++) {
+      const x = i * FONT_SIZE;
+      const y = Math.floor(drops[i]) * FONT_SIZE;
+
+      if (y > 0) {
+        // Repaint the previous head in standard green so only the head stays bright.
+        ctx.fillStyle = '#0f0';
+        ctx.fillText(randomGlyph(), x, y);
+
+        // Bright white-green head glyph, one row below.
+        ctx.fillStyle = '#cfc';
+        ctx.fillText(randomGlyph(), x, y + FONT_SIZE);
+      }
+
+      drops[i] += speeds[i];
+
+      // Reset the column once it has fallen past the bottom, at a random delay.
+      if (y > window.innerHeight && Math.random() > 0.975) {
+        drops[i] = Math.random() * -20;
+        speeds[i] = 0.5 + Math.random() * 0.75;
+      }
+    }
+  }
+
+  let last = 0;
+  const FRAME_MS = 50; // ~20fps — the effect looks better slightly choppy.
+  function loop(t) {
+    if (t - last >= FRAME_MS) {
+      last = t;
+      draw();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
